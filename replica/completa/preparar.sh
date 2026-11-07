@@ -51,6 +51,9 @@ fi
 mkdir -p "$A/install/fmt/lib/cmake"
 ln -sfn "$RAIZ/usr/include" "$A/install/fmt/include"
 ln -sfn "$RAIZ/usr/lib/x86_64-linux-gnu/cmake/fmt" "$A/install/fmt/lib/cmake/fmt"
+# fmt-targets.cmake sube 4 carpetas para hallar su raíz: desde install/fmt/lib/cmake/fmt llega a install/ y busca ahí lib e include
+ln -sfn "$RAIZ/usr/lib" "$A/install/lib"
+ln -sfn "$RAIZ/usr/include" "$A/install/include"
 
 # 4. ParlayLib -----------------------------------------------------------------------------------------------------
 if [ ! -d "$A/install/parlaylib/share" ]; then

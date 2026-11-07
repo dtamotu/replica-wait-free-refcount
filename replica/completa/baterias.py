@@ -39,7 +39,7 @@ NUCLEOS_P = [2, 3, 4, 5, 6, 7, 0, 1]   # cada uno con su L2; el 0 y el 1 al fina
 PANELES = [(1, 1), (1, 10), (1, 50), (10, 1), (10, 10), (1000000, 50)]
 HILOS_FIG5 = [1, 3, 6, 9, 12, 18, 24, 30, 36]   # los del paper (1, 18, 36, ... 216) divididos entre 6
 P_FIG6 = [1, 24, 56]                            # 1 y todos los núcleos; 56 es el valor literal del paper
-PANELES_PARIDAD = [(1, 1), (1000000, 50)]
+PANELES_PARIDAD = PANELES
 PANELES_PARES = [(1, 50)]
 PARES = {"mismo clúster": [(8, 9), (12, 13), (16, 17), (20, 21)],
          "clústeres distintos": [(8, 12), (8, 16), (8, 20), (12, 16), (12, 20), (16, 20), (9, 13)],

@@ -2,7 +2,7 @@
 """Tablas y gráficas de la réplica completa.
 
 Uso: python3 replica/completa/analizar.py [carpeta_de_resultados]
-Lee <carpeta>/docker y <carpeta>/nativo, y escribe <carpeta>/figuras/*.png y <carpeta>/tablas.md.
+Lee las carpetas docker, nativo, nativo_oficial y nativo_alineado de <carpeta>, y escribe <carpeta>/figuras/*.png y <carpeta>/tablas.md.
 
 Paleta: misma asignación de tonos que la figura 5 del paper, con pasos ajustados porque la original no
 distingue Williams de Folly con daltonismo (protanopia, ΔE 0,7). Comprobada con validate_palette.js: ΔE ≥ 16.
@@ -219,8 +219,8 @@ def figura_latencia(filas, impls, p_alto, nombre):
     guardar(fig, nombre)
 
 
-def tabla_latencia(filas, salida):
-    salida.append("\n## Latencia: medianas en ns (figura 6)\n")
+def tabla_latencia(filas, salida, nombre="figura 6"):
+    salida.append(f"\n## Latencia: medianas en ns ({nombre})\n")
     salida.append("| Operación | p | " + " | ".join(ORDEN) + " |")
     salida.append("|---|---|" + "---|" * len(ORDEN))
     for op, rotulo in OPS:
@@ -231,8 +231,8 @@ def tabla_latencia(filas, salida):
             salida.append(f"| | réplica p={p_aqui} | " + " | ".join(f"{r[i]:,.0f}" if r[i] else "—" for i in ORDEN) + " |")
 
 
-def tabla_colas(filas, salida):
-    salida.append("\n## Colas de latencia en ns: p50 / p99 / p99,95\n")
+def tabla_colas(filas, salida, sufijo=""):
+    salida.append(f"\n## Colas de latencia en ns: p50 / p99 / p99,95{sufijo}\n")
     salida.append("| Operación | p | " + " | ".join(ORDEN) + " |")
     salida.append("|---|---|" + "---|" * len(ORDEN))
     for op, rotulo in OPS:
@@ -336,8 +336,9 @@ def tabla_pares(filas, impls, salida, nombre):
     pares = {r["colocacion"]: r["familia"] for r in serie(filas, experimento="pares")}
     if not pares:
         return
+    rondas = len({r["ronda"] for r in serie(filas, experimento="pares")})
     salida.append(f"\n## Dos hilos en distintos pares de núcleos ({nombre})\n")
-    salida.append("Mop/s, mediana de 3 rondas (entre paréntesis, mínimo y máximo de Williams), n = 1, u = 50 %.\n")
+    salida.append(f"Mop/s, mediana de {rondas} rondas (entre paréntesis, mínimo y máximo de Williams), n = 1, u = 50 %.\n")
     salida.append("| Clase | Núcleos | " + " | ".join(impls) + " |")
     salida.append("|---|---|" + "---|" * len(impls))
     clases = ("mismo clúster", "clústeres distintos", "P ↔ P", "P ↔ E")
@@ -401,7 +402,7 @@ def figura_miniatura(filas, paper):
     guardar(fig, "miniatura_frente_a_paper.png")
 
 
-def figura_basura(filas):
+def figura_basura(filas, nombre="memoria_retenida.png"):
     if not filas:
         return
     fig, ax = plt.subplots(figsize=(7.4, 4.3), constrained_layout=True)
@@ -417,14 +418,14 @@ def figura_basura(filas):
     ax.set_ylabel("pico de bloques de memoria vivos (escala log.)")
     ax.set_xticks(hilos)
     fig.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3)
-    guardar(fig, "memoria_retenida.png")
+    guardar(fig, nombre)
 
 
-def tabla_basura(filas, salida):
+def tabla_basura(filas, salida, sufijo=""):
     if not filas:
         return
     hilos = sorted({int(r["hilos"]) for r in filas})
-    salida.append("\n## Memoria retenida: pico de bloques vivos\n")
+    salida.append(f"\n## Memoria retenida: pico de bloques vivos{sufijo}\n")
     salida.append("| Hilos | Límite | " + " | ".join(ORDEN) + " |")
     salida.append("|---|---|" + "---|" * len(ORDEN))
     for h in hilos:
@@ -443,7 +444,7 @@ def tabla_paridad(filas, salida, nombre):
     par = leer(RES / nombre / "paridad.csv")
     if not par:
         return
-    salida.append("\n## Validación de los recortes: receta exacta del paper (10 s × 7) frente a 2 s × 5\n")
+    salida.append(f"\n## Validación de los recortes: receta exacta del paper (10 s × 7) frente a 2 s × 5 ({nombre})\n")
     salida.append("| Punto | Impl | 10 s × 7 | 2 s × 5 | Diferencia |")
     salida.append("|---|---|---|---|---|")
     for r in par:
@@ -534,6 +535,111 @@ def tabla_williams_candado(antes, despues, salida):
                 salida.append(f"| {rotulo} | {p} | {a:.0f} | {b:.0f} |")
 
 
+def tabla_variabilidad(filas, salida, nombre):
+    """Cuánto cambia la misma medición de latencia entre rondas: la ronda más alta entre la más baja."""
+    grupos = defaultdict(list)
+    for r in serie(filas, experimento="fig6"):
+        grupos[(r["impl"], r["op"], int(r["p"]))].append(r)
+    if not grupos:
+        return
+    salida.append(f"\n## Variabilidad de la latencia entre rondas ({nombre})\n")
+    salida.append(f"Ronda más alta entre ronda más baja, punto a punto; 1,00× significa que todas coinciden. Hasta {max(map(len, grupos.values()))} rondas.\n")
+    salida.append("| p | Medida | Caso típico | Peor caso |\n|---|---|---|---|")
+    for p in sorted({k[2] for k in grupos}):
+        for campo in ("p50", "p99"):
+            cocientes = []
+            for clave, v in grupos.items():
+                x = [float(r[campo]) for r in v if r[campo]]
+                if clave[2] == p and x and min(x) > 0:
+                    cocientes.append(max(x) / min(x))
+            salida.append(f"| {p} | {campo} | {st.median(cocientes):.2f}× | {max(cocientes):.1f}× |")
+
+
+def tabla_alineado(antes, despues, salida):
+    """La batería sin Docker, sin alinear y con alignas(128) en Pila."""
+    salida.append("\n## Batería sin Docker con las pilas alineadas\n")
+    salida.append("Mop/s, mediana de la figura 5 con 24 hilos.\n\n| Panel | Impl | Sin alinear | Alineado | Alineado / sin alinear |\n|---|---|---|---|---|")
+    for n, u in PANELES:
+        for impl in ("Autores", "Libstdc++", "Williams", "Mutex"):
+            a = mediana(antes, experimento="fig5", impl=impl, n=n, u=u, hilos=24)
+            b = mediana(despues, experimento="fig5", impl=impl, n=n, u=u, hilos=24)
+            if a and b:
+                salida.append(f"| {titulo_panel(n, u)} | {impl} | {a:.2f} | {b:.2f} | {b / a:.2f}× |")
+
+
+def trafico(filas, **filtro):
+    """GB/s totales por la controladora de memoria."""
+    return mediana(filas, "gbs_lectura", **filtro) + mediana(filas, "gbs_escritura", **filtro)
+
+
+def tabla_memoria(filas, salida):
+    """Bytes que pasan de verdad por la controladora de memoria, con n = 10⁶ y u = 50 %."""
+    if not filas:
+        return
+    reposo = trafico(filas, prueba="reposo")
+    hilos = sorted({int(r["hilos"]) for r in serie(filas, prueba="pila")})
+    salida.append("\n## Tráfico real de RAM con n = 10⁶ y u = 50 % (contadores de la controladora de memoria)\n")
+    salida.append(f"En reposo la máquina mueve {reposo:.2f} GB/s, que se restan de la columna de bytes por operación.\n")
+    salida.append("Techo medido con `ancho_banda`, en GB/s:\n\n| Prueba | Hilos | Lectura | Escritura | Total |\n|---|---|---|---|---|")
+    for prueba in ("lectura", "copia", "azar"):
+        for h in sorted({int(r["hilos"]) for r in serie(filas, prueba=prueba)}):
+            f = dict(prueba=prueba, hilos=h)
+            salida.append(f"| {prueba} | {h} | {mediana(filas, 'gbs_lectura', **f):.1f} | {mediana(filas, 'gbs_escritura', **f):.1f} | {trafico(filas, **f):.1f} |")
+    for titulo, celda in (("Mop/s", lambda i, h: f"{mediana(filas, prueba='pila', impl=i, hilos=h):.1f}"),
+                          ("GB/s totales", lambda i, h: f"{trafico(filas, prueba='pila', impl=i, hilos=h):.1f}"),
+                          ("Bytes de RAM por operación", lambda i, h: f"{1000 * (trafico(filas, prueba='pila', impl=i, hilos=h) - reposo) / mediana(filas, prueba='pila', impl=i, hilos=h):.0f}")):
+        salida.append(f"\n{titulo}:\n\n| Hilos | " + " | ".join(ORDEN) + " |\n|---|" + "---|" * len(ORDEN))
+        for h in hilos:
+            salida.append(f"| {h} | " + " | ".join(celda(i, h) for i in ORDEN) + " |")
+
+
+def tabla_alineado_memoria(filas, reposo, salida):
+    """bench.cpp sin alinear y con alignas(128), alternando, con los contadores de la controladora de memoria."""
+    if not filas:
+        return
+    rondas = sorted({r["ronda"] for r in filas})
+    salida.append("\n## Por qué alinear frena con n = 10⁶ (tráfico de RAM, nativo, bench.cpp)\n")
+    salida.append(f"24 hilos, u = 50 %, mediana de {len(rondas)} rondas. Las dos versiones de cada punto se midieron seguidas, en orden al azar. "
+                  f"A los bytes por operación se les resta el reposo ({reposo:.2f} GB/s).\n")
+    salida.append("| n | Impl | Mop/s, sin alinear → alineado | Alineado / sin alinear, por ronda | GB/s | Bytes de RAM por operación |\n|---|---|---|---|---|---|")
+    for n in sorted({int(r["n"]) for r in filas}):
+        for impl in ("Autores", "Libstdc++", "Williams", "Mutex"):
+            f = dict(impl=impl, n=n)
+            a, b = (mediana(filas, version=v, **f) for v in ("sin_alinear", "alineado"))
+            ga, gb = (trafico(filas, version=v, **f) for v in ("sin_alinear", "alineado"))
+            cocientes = [mediana(filas, version="alineado", ronda=r, **f) / mediana(filas, version="sin_alinear", ronda=r, **f) for r in rondas]
+            salida.append(f"| {({100000: '10⁵', 1000000: '10⁶'}).get(n, n)} | {impl} | {a:.1f} → {b:.1f} | {min(cocientes):.2f}× a {max(cocientes):.2f}× | "
+                          f"{ga:.1f} → {gb:.1f} | {1000 * (ga - reposo) / a:.0f} → {1000 * (gb - reposo) / b:.0f} |")
+
+
+def figura_memoria(filas):
+    if not filas:
+        return
+    reposo = trafico(filas, prueba="reposo")
+    techo, azar = (max(trafico(filas, prueba=p, hilos=h) for h in {r["hilos"] for r in serie(filas, prueba=p)}) for p in ("lectura", "azar"))
+    hilos = sorted({int(r["hilos"]) for r in serie(filas, prueba="pila")})
+    fig, (izq, der) = plt.subplots(1, 2, figsize=(10.5, 4.2), constrained_layout=True)
+    for impl in ORDEN:
+        gbs = [trafico(filas, prueba="pila", impl=impl, hilos=h) for h in hilos]
+        mops = [mediana(filas, prueba="pila", impl=impl, hilos=h) for h in hilos]
+        estilo = dict(color=COL[impl], marker=MARCA[impl], ms=7, mec=FONDO, mew=0.6)
+        izq.plot(hilos, gbs, **estilo)
+        der.plot(hilos, [1000 * (g - reposo) / m for g, m in zip(gbs, mops)], **estilo)
+    izq.axhline(techo, color=TINTA2, ls="--", lw=1.2)
+    izq.text(hilos[0], techo, f"techo en orden: {techo:.0f} GB/s", fontsize=8, color=TINTA2, va="bottom")
+    izq.axhline(azar, color=TINTA2, ls=":", lw=1.2)
+    izq.text(hilos[0], azar, f"techo al azar: {azar:.0f} GB/s", fontsize=8, color=TINTA2, va="bottom")
+    izq.set_ylim(0, techo * 1.12)
+    izq.set_ylabel("tráfico de RAM (GB/s)")
+    der.set_ylim(bottom=0)
+    der.set_ylabel("bytes de RAM por operación")
+    for ax in (izq, der):
+        ax.set_xlabel("número de hilos")
+        ax.set_xticks(hilos)
+    leyenda_superior(fig, ORDEN)
+    guardar(fig, "memoria_ram.png")
+
+
 def figura_docker_nativo(docker, nativo, comunes, rotulo, nombre):
     fig, ax = plt.subplots(figsize=(6.2, 5.4), constrained_layout=True)
     xs, ys = [], []
@@ -570,6 +676,11 @@ def main():
     nativo = leer(RES / "nativo" / "rendimiento.csv")
     lat_nat = leer(RES / "nativo" / "latencia.csv")
     nat_oficial = leer(RES / "nativo_oficial" / "rendimiento.csv")
+    lat_oficial = leer(RES / "nativo_oficial" / "latencia.csv")
+    basura_oficial = leer(RES / "nativo_oficial" / "basura.csv")
+    nat_alineado = leer(RES / "nativo_alineado" / "rendimiento.csv")
+    memoria = leer(RES / "memoria_ram.csv")
+    alineado_memoria = leer(RES / "nativo_alineado" / "memoria_alineado.csv")
     paper = leer(AQUI / "paper_fig5.csv")
     salida = [f"# Tablas generadas por analizar.py\n\nDatos: `{RES.name}`."]
 
@@ -600,6 +711,7 @@ def main():
         figura_latencia(lat, ["Autores", "Libstdc++", "Folly", "Anderson", "Williams"], 24, "fig6_replica.png")
         tabla_latencia(lat, salida)
         tabla_colas(lat, salida)
+        tabla_variabilidad(lat, salida, "Docker")
     figura_basura(basura)
     tabla_basura(basura, salida)
     if nativo:
@@ -615,6 +727,7 @@ def main():
             tabla_compacto_disperso(nativo, eq, salida, "nativo, bench.cpp del equipo")
     if lat_nat:
         figura_latencia(lat_nat, ["Autores", "Libstdc++", "Williams", "Mutex"], 24, "nativo_fig6.png")
+        tabla_variabilidad(lat_nat, salida, "nativo, bench.cpp del equipo")
     tabla_controles(leer(RES / "controles.csv"), salida)
     tabla_williams(leer(RES / "control_williams.csv"), salida)
     tabla_williams_candado(leer(RES / "docker" / "latencia_williams_con_candado.csv"), lat, salida)
@@ -623,6 +736,26 @@ def main():
         tabla_calidad(nat_oficial, "Nativo, binarios oficiales", salida)
         figura_docker_nativo(docker, nat_oficial, ORDEN, "Nativo · binarios oficiales (Mop/s)", "docker_frente_a_nativo_oficial.png")
         tabla_docker_nativo(docker, nat_oficial, ORDEN, salida, "nativo (binarios oficiales)")
+        tabla_paridad(nat_oficial, salida, "nativo_oficial")
+        tabla_pares(nat_oficial, ORDEN, salida, "nativo, binarios oficiales")
+        if any(r["experimento"] == "afinidad" for r in nat_oficial):
+            figura_dosis(nat_oficial, ORDEN, "nativo_oficial_dosis_respuesta.png")
+            tabla_compacto_disperso(nat_oficial, ORDEN, salida, "nativo, binarios oficiales")
+    if lat_oficial:
+        figura_latencia(lat_oficial, ["Autores", "Libstdc++", "Folly", "Anderson", "Williams"], 24, "nativo_oficial_fig6.png")
+        tabla_latencia(lat_oficial, salida, "nativo, binarios oficiales")
+        tabla_colas(lat_oficial, salida, " (nativo, binarios oficiales)")
+        tabla_variabilidad(lat_oficial, salida, "nativo, binarios oficiales")
+    if basura_oficial:
+        figura_basura(basura_oficial, "nativo_oficial_memoria_retenida.png")
+        tabla_basura(basura_oficial, salida, " (nativo, binarios oficiales)")
+    if nat_alineado:
+        figura_rendimiento(nat_alineado, ["Autores", "Libstdc++", "Williams", "Mutex"], "nativo_alineado_fig5.png")
+        tabla_calidad(nat_alineado, "Nativo, pilas alineadas", salida)
+        tabla_alineado(nativo, nat_alineado, salida)
+    figura_memoria(memoria)
+    tabla_memoria(memoria, salida)
+    tabla_alineado_memoria(alineado_memoria, trafico(memoria, prueba="reposo") if memoria else 0, salida)
     (RES / "tablas.md").write_text("\n".join(salida) + "\n", encoding="utf-8")
     print("tablas.md escrito")
 
