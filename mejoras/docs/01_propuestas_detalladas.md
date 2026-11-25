@@ -91,6 +91,15 @@ Se descompone en dos componentes medibles por separado en ablación:
 - **Verificación:** ASan + UBSan + TSan (`setarch -R`) sobre conservación de elementos en pila concurrente + `bench_basura` (verificar 0 bloques diferidos) + verificación de que `load()`/`store()` siguen 100 % *wait-free* y con cero regresión en `n = 10` y `n = 10⁶` (porque el arreglo de eliminación solo se activa tras fallo de `CAS`, y cuando $N$ es grande puede omitirse o permanecer frío).
 - **Criterio de éxito:** superar a `Anderson` (`2.06 Mop/s` en `n=1, u=50%` y `8.79 Mop/s` en `n=1, u=10%`) sin degradar `n = 10` ni `n = 10⁶`, manteniendo liberación inmediata.
 
+### Resultado empírico medido (`resultados_v3/resumen_v3.md`, 360 ejecuciones × 2 s, 0 fallos)
+- **Validación:** ASan+UBSan y TSan (`setarch -R`) pasados con 0 errores, 0 fugas y 0 *data races* (conservación exacta 1:1 de conteo y suma). Topología detectada automáticamente: 6 dominios (8 P-cores + 4 clústeres de 4 E-cores).
+- **Victoria en los 6 paneles de la Figura 5 a 24 hilos frente a `Autores`, `Anderson` y `Folly`:**
+  - `n = 1, u = 50 %`: `Autores 0.96` → `v2 1.72` → `v3a (backoff) 1.61` → `v3g (genérico) 2.22` → **`Autores-v3 (L2+P/E) 3.66 Mop/s` (`3.81×` sobre original, `+65 %` sobre `v3g`, `+80 %` sobre `Anderson 2.03`)**, con **escalado positivo** al pasar de 12 → 18 → 24 hilos (`2.63 → 3.08 → 3.66`).
+  - `n = 1, u = 10 %`: `Autores 4.16` → `v2 6.40` → `v3g 7.42` → **`Autores-v3 9.55 Mop/s` (`2.30×`, supera a `Anderson 8.78`)**.
+  - `n = 10, u = 10 %`: **`Autores-v3 73.83 Mop/s` (`1.44×`)**, superando incluso al control justo `Anderson-v3` (`59.70`).
+  - `n = 10⁶, u = 50 %`: **`64.09 Mop/s`** (`RSS = 763 MB`, solo +3 MB respecto a `v2` y −29 % respecto a `Autores` original).
+- **Control científico justo (`Anderson-v3`):** confirma que la capa L2 también acelera a Anderson en `n = 1, u = 10/50 %` (`12.57` y `5.09`), pero `Autores-v3` vence a `Anderson-v3` en los otros 4 paneles y mantiene 0 bloques diferidos.
+
 ### Respaldo bibliográfico
 - Hendler, Shavit & Yerushalmi (2004), *SPAA 2004*, DOI `10.1145/1007912.1007944` (y versión revista *JPDC* 2010).
 - Liu, Gu, Tang, Li, Zang & Chen (2022), *LibASL*, *PPoPP 2022*, DOI `10.48550/arXiv.2108.03355`.

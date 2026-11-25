@@ -45,9 +45,9 @@ En cambio, el código C++ original de `Autores` guardaba el libro en un estante 
 
 ---
 
-## Mejora 3 (`Autores-v3`): «Mesas de intercambio rápido en el pasillo» *(Siguiente paso)*
+## Mejora 3 (`Autores-v3`): «Mesas de intercambio rápido en el pasillo» *(Ya hecha y probada)*
 
-### Qué problema queda por resolver
+### Qué problema atacaba
 Después de `v2`, el único lugar donde `Anderson` todavía nos gana (`2.06` vs `1.63 Mop/s`) es cuando los **24 bibliotecarios hacen fila frente a un solo tablón** (`n = 1, u = 50 %`), metiendo (`push`) y sacando (`pop`) libros sin parar. Todos chocan en la misma puerta.
 
 Además, tu procesador Core Ultra 9 285 tiene **dos tipos de trabajadores**:
@@ -60,12 +60,13 @@ Piensa en qué pasa cuando un bibliotecario llega a **dejar** un libro (`push`) 
 - Ambos terminan al instante sin tocar el tablón central ni crear cajas nuevas, y el resultado final de la pila es matemáticamente idéntico (como si uno hubiera puesto el libro y el otro lo hubiera sacado un instante después).
 - Además, si hay choque, ajustamos la espera según si el trabajador es P o E para que no se pisen los talones.
 
-### Qué buscamos lograr
-Superar a `Anderson` también en el peor escenario de contención extrema (`n = 1, u = 10 %` y `50 %`), sin perder nada en los otros 5 escenarios y manteniendo **cero basura acumulada**.
+### Qué pasó al medirlo en tu PC
+- **En pelea extrema (`n = 1, u = 50 %`, 24 hilos):** `Autores-v3` saltó de **0.96 → 3.66 Mop/s (`3.81×` más rápido que el original y `+80 %` por encima de Anderson `2.03`)**. Y lo más llamativo: las mesas agrupadas por clúster L2 fueron **+65 % más rápidas** que mesas aleatorias (`2.22 Mop/s`), logrando que el rendimiento **suba** al añadir más núcleos (`12 → 18 → 24` hilos) en vez de desplomarse.
+- **Victoria 6 de 6:** `Autores-v3` supera ahora a `Autores`, `Anderson` y `Folly` en los **6 gráficos del paper** (a 1 y 24 hilos), sin empeorar el consumo de memoria (`763 MB` en `n = 10⁶`) y manteniendo **cero basura diferida**.
 
 ---
 
-## Mejora 4 (`Autores-v4`): «Ayuda solidaria para que nadie se quede atascado nunca» *(Extensión teórica del paper)*
+## Mejora 4 (`Autores-v4`): «Ayuda solidaria para que nadie se quede atascado nunca» *(Siguiente paso)*
 
 ### Qué problema teórico deja abierto el paper original
 El propio paper admite una pequeña trampa en su sección 5.1:

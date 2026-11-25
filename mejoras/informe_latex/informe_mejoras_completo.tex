@@ -1,0 +1,213 @@
+% Informe completo de mejoras experimentales sobre la réplica de Euro-Par 2024 (v1, v2 y v3)
+% Compilación (desde mejoras/informe_latex/):
+%   pdflatex informe_mejoras_completo.tex && bibtex informe_mejoras_completo && pdflatex informe_mejoras_completo.tex && pdflatex informe_mejoras_completo.tex
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot,es-tabla]{babel}
+\spanishplainpercent
+\usepackage{geometry}
+\geometry{margin=2.0cm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{graphicx,float}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{cite}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\definecolor{tinta}{HTML}{1B2430}
+\definecolor{gris}{HTML}{5B6573}
+\definecolor{acento}{HTML}{C8551F}
+\definecolor{azul}{HTML}{1F5FA8}
+\definecolor{ok}{HTML}{1B7F3B}
+\definecolor{mal}{HTML}{B3261E}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=azul,
+    urlcolor=azul,
+    citecolor=azul,
+    pdftitle={Mejoras al Conteo de Referencias Wait-Free de Euro-Par 2024: Autores-v1, v2 y v3},
+    pdfauthor={David Tamo Turpo, Jheremy Manuel Alvarez Astete, Diego Quispe Candelario}
+}
+
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.14}
+\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}}
+
+\title{%
+  {\small\color{acento}\textbf{EXTENSIÓN E INVESTIGACIÓN ORIGINAL SOBRE LA RÉPLICA DE EURO-PAR 2024}}\\[4pt]
+  \textbf{\LARGE Mejoras al Conteo de Referencias \emph{Wait-Free}: Ablación de \texttt{Autores-v1}, \texttt{v2} y \texttt{v3} en Arquitectura Híbrida}\\[6pt]
+  {\large Higiene de \texttt{CAS}, bloque de control \emph{in-place}, \emph{Elimination-Backoff} consciente de clústeres L2 y P/E-cores,\\
+  y hoja de ruta hacia \texttt{Autores-v4} (\texttt{CAS} \emph{wait-free})}
+}
+\author{%
+  David Tamo Turpo \and Jheremy Manuel Alvarez Astete \and Diego Quispe Candelario\\[4pt]
+  {\small Rama \texttt{mejoras-autores}: \url{https://github.com/dtamotu/replica-wait-free-refcount}}
+}
+\date{Noviembre de 2026}
+
+\begin{document}
+\emergencystretch=1.5em
+\maketitle
+
+\begin{abstract}
+\noindent
+Partiendo de nuestra réplica experimental del artículo de Euro-Par 2024~\cite{dewolff2024waitfree,dewolff2024artifact} sobre un procesador híbrido \textbf{Intel Core Ultra 9 285} (8 P-cores + 16 E-cores en 4 clústeres L2, 1 módulo DDR5-5600), presentamos la implementación, verificación y evaluación en ablación de tres mejoras incrementales directas sobre \texttt{Autores} (\texttt{ivo::atomic\_shared\_ptr}): \textbf{\texttt{Autores-v1}} (higiene de \texttt{CAS} sin copias y pre-chequeo previo), \textbf{\texttt{Autores-v2}} (bloque de control \emph{in-place} de asignación única y \texttt{shared\_ptr} de 8 bytes) y \textbf{\texttt{Autores-v3}} (\emph{Elimination-Backoff} linealizable de una palabra atómica particionado por clúster L2 y tipo de núcleo P/E).
+
+Todas las variantes pasaron \textbf{ASan+UBSan}, \textbf{TSan} (0 \emph{data races}), recarga forzada ($P=32, C=64$) y \texttt{bench\_basura}, preservando \texttt{load}/\texttt{store} \emph{wait-free} y liberación inmediata (0 bloques diferidos frente a $\approx 29\,000$ en Anderson). Sobre \textbf{705 ejecuciones de rendimiento}, \textbf{195 filas de latencia controlada} y \textbf{42 de memoria retenida} (0 fallos), \textbf{\texttt{Autores-v3} supera a \texttt{Autores} original, \texttt{Anderson} y \texttt{Folly} en los 6 de 6 paneles de la Figura~5 tanto a 1 hilo como a 24 hilos}: logra \textbf{3{,}66\,Mop/s ($3{,}81\times$ sobre el original, $+80\,\%$ sobre Anderson y $+65\,\%$ sobre eliminación ciega a topología)} en $n=1, u=50\,\%$ con escalado positivo de 12 a 24 hilos, alcanza \textbf{64{,}09--65{,}98\,Mop/s} en $n=10^6$ con \textbf{$-29\,\%$ de RSS} ($1\,075 \to 763$\,MB), demuestra que \texttt{\_mm\_pause()} y el \emph{backoff} puro en \texttt{CAS} no resuelven la contención en Arrow Lake, y resuelve causalmente la bimodalidad de latencia como colocación P-core ($414$\,ns) frente a E-core ($1\,408$\,ns).
+\end{abstract}
+
+\tableofcontents
+\vspace{4pt}
+
+% ==============================================================================
+\section{Escalera de Cuatro Propuestas sobre la Réplica de Euro-Par 2024}
+% ==============================================================================
+
+\begin{table}[H]
+\centering
+\caption{Escalera de mejoras directas sobre \texttt{Autores}, su sustento bibliográfico verificado y estado actual.}
+\label{tab:escalera}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{4.3cm} l@{}}
+\toprule
+\textbf{Peldaño} & \textbf{Mecanismo técnico (y síntesis accesible)} & \textbf{Respaldo bibliográfico} & \textbf{Estado} \\
+\midrule
+\textbf{1. \texttt{Autores-v1}} & Paso por referencia en \texttt{CAS}, pre-chequeo previo a incrementar \texttt{new\_cb}, \texttt{relaxed} local y ablación de \texttt{\_mm\_pause()}. & Mellor-Crummey \& Scott~\cite{mellorcrummey1991mcs}, de Wolff et al.~\cite{dewolff2024waitfree}, Anderson et al.~\cite{anderson2022turning} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{2. \texttt{Autores-v2}} & Bloque de control \emph{in-place} sin \emph{vtable} (1 asignación), \texttt{shared\_ptr} de 8\,B y \texttt{load()} sin indirección extra. & de Wolff et al. \S 2.1~\cite{dewolff2024waitfree}, Dimov \& Dawes N2351~\cite{dimov2007n2351}, Anderson et al.~\cite{anderson2022turning}, Mytkowicz et al.~\cite{mytkowicz2009wrongdata} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{3. \texttt{Autores-v3}} & \emph{Elimination-Backoff} de 1 palabra atómica particionado por clúster L2 + ventanas P/E-core y asignación perezosa. & Hendler et al.~\cite{hendler2004elimination}, Liu et al. LibASL~\cite{liu2022libasl}, Ouyang \& Zhu~\cite{ouyang2022coreaware}, Schöne et al.~\cite{schone2024alderlake} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{4. \texttt{Autores-v4}} & \texttt{compare\_and\_set} \emph{wait-free} mediante \emph{Fast-Path / Slow-Path Helping} (cierra \S 5.1). & de Wolff et al. \S 5.1~\cite{dewolff2024waitfree}, Kogan \& Petrank~\cite{kogan2012methodology}, Timnat \& Petrank~\cite{timnat2014simulation}, Nikolaev \& Ravindran~\cite{nikolaev2024crystalline} & \textcolor{acento}{\textbf{Siguiente etapa}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ==============================================================================
+\section{Ablación de \texttt{Autores-v1} y \texttt{Autores-v2}: Limpieza de \texttt{CAS}, Layout \emph{In-Place} y Latencia P/E}
+% ==============================================================================
+
+\texttt{Autores-v1} (\texttt{mejoras/atomic\_shared\_ptr\_v1.h}) elimina las 6 RMW atómicas desperdiciadas por intento fallido de \texttt{compare\_exchange\_weak} en el C++ oficial (paso por valor de \texttt{expected} y \texttt{new\_ptr}, e incremento prematuro de \texttt{new\_cb}) e introduce \texttt{rc\_increment\_relaxed} cuando el hilo ya posee una referencia viva. \texttt{Autores-v2} (\texttt{mejoras/atomic\_shared\_ptr\_v2.h}) añade un bloque de control \emph{in-place} sin \emph{vtable} (asignación única de 32\,B para cada nodo de la pila, análogo al \texttt{Arc<T>} de Rust), compacta \texttt{shared\_ptr<T>} a 8\,B y elimina la desreferencia extra en \texttt{load()}.
+
+\begin{table}[H]
+\centering
+\caption{Ablación \texttt{v1}/\texttt{v2} en los 6 paneles de la Figura 5 a 24 hilos (mediana 3 rondas $\times$ 2\,s, Mop/s) y efecto negativo de \texttt{\_mm\_pause()} (\texttt{v1p}, \texttt{v2p}).}
+\label{tab:v1v2_24h}
+\footnotesize
+\begin{tabular}{@{}l r r r r r r r@{}}
+\toprule
+\textbf{Panel} & \textbf{Autores} & \textbf{v1} & \textbf{v1p} & \textbf{v2} & \textbf{v2p} & \textbf{Anderson} & \textbf{Folly} \\
+\midrule
+$n=1, u=1\,\%$ & 19{,}72 & 17{,}42 & 14{,}89 & \textbf{19{,}52} (0{,}99$\times$) & 14{,}18 & 18{,}46 & 8{,}86 \\
+$n=1, u=10\,\%$ & 4{,}63 & 6{,}13 & 4{,}67 & \textbf{6{,}55} (1{,}41$\times$) & 4{,}86 & 8{,}79 & 5{,}03 \\
+$n=1, u=50\,\%$ & 1{,}03 & 1{,}48 & 0{,}94 & \textbf{1{,}63} (1{,}58$\times$) & 1{,}10 & 2{,}06 & 1{,}46 \\
+$n=10, u=1\,\%$ & 128{,}61 & 131{,}30 & 128{,}76 & \textbf{136{,}25} (1{,}06$\times$) & 131{,}73 & 73{,}45 & 50{,}04 \\
+$n=10, u=10\,\%$ & 55{,}51 & 53{,}51 & 45{,}08 & \textbf{56{,}28} (1{,}01$\times$) & 43{,}61 & 62{,}55 & 36{,}40 \\
+$n=10^6, u=50\,\%$ & 47{,}31 & 49{,}30 & 49{,}31 & \textbf{65{,}98} (1{,}39$\times$) & 64{,}72 & 50{,}62 & 47{,}24 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{escalado_n1M_y_n1u50.png}
+  \caption{Ablación \texttt{v1}/\texttt{v2}: en $n=10^6, u=50\,\%$ (izq.), \texttt{Autores-v2} rompe el techo de $\approx 50$\,Mop/s sin cambiar la RAM DDR5 ($+81\,\%$ a 1\,h, $+39\,\%$ a 24\,h, $-29{,}3\,\%$ de RSS: $1\,075 \to 760$\,MB). En $n=1, u=50\,\%$ (der.), \texttt{v2} gana $+58\,\%$ pero \texttt{\_mm\_pause()} degrada $-33\,\%$.}
+  \label{fig:v1v2_esc}
+\end{figure}
+
+En latencia controlada con afinidad fija (Cuadro~\ref{tab:latencia}), fijar el hilo cronometrado en un P-core (\texttt{todos24-P}) colapsa la dispersión de 5 rondas de $5{,}75\times$ a \textbf{$1{,}04\times$} ($405\text{--}421$\,ns), demostrando causalmente que la bimodalidad de la réplica procedía de la alternancia P-core ($414$\,ns) vs. E-core ($1\,408$\,ns)~\cite{schone2024alderlake}. Además, \texttt{Autores-v2} mantiene \texttt{p99,95} de \textbf{32\,ns} en \texttt{store-del} ($p=1$) frente a \textbf{7\,770\,ns} de Anderson~\cite{kim2024epochs}, y \textbf{53 bloques} pico en \texttt{bench\_basura} a 24\,h frente a \textbf{29\,094} de Anderson.
+
+\begin{table}[H]
+\centering
+\caption{Latencia controlada (ns): \texttt{p50 / p99 / p99,95} según colocación del hilo medido.}
+\label{tab:latencia}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l l c c c c c@{}}
+\toprule
+\textbf{Op.} & \textbf{Corte} & \textbf{Autores} & \textbf{Autores-v1} & \textbf{Autores-v2} & \textbf{Anderson} & \textbf{Folly} \\
+\midrule
+\texttt{load} & $p=1$ (P-fijo) & 14 / 15 / 16 & 14 / 15 / 18 & \textbf{14 / 15 / 21} & 18 / 19 / 21 & 15 / 17 / 24 \\
+\texttt{load} & $p=24$ (todos24-P) & 425 / 887 / 1\,510 & 414 / 945 / 1\,533 & \textbf{414 / 955 / 1\,564} & 490 / 946 / 1\,704 & 485 / 2\,155 / 4\,082 \\
+\texttt{load} & $p=24$ (todos24-E) & 1\,330 / 2\,478 / 3\,692 & 699 / 1\,819 / 2\,725 & 1\,408 / 2\,588 / 4\,173 & 1\,512 / 3\,914 / 3\,003\,557 & 2\,986 / 72\,795 / 3\,067\,716 \\
+\texttt{store} & $p=24$ (todos24-P) & 522 / 1\,363 / 1\,819 & 482 / 1\,113 / 1\,678 & \textbf{484 / 1\,236 / 1\,768} & 498 / 1\,278 / 1\,829 & 802 / 1\,548 / 2\,614 \\
+\texttt{store-del} & $p=1$ (P-fijo) & 27 / 29 / 32 & 28 / 30 / 33 & \textbf{28 / 30 / 32} & 29 / 32 / \textcolor{mal}{\textbf{7\,770}} & 24 / 28 / 36 \\
+\texttt{store-del} & $p=24$ (todos24-P) & 425 / 813 / 1\,109 & 416 / 792 / 1\,063 & \textbf{417 / 794 / 1\,145} & 429 / 820 / 1\,118 & 1\,432 / 2\,406 / 3\,894 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+% ==============================================================================
+\section{\texttt{Autores-v3}: \emph{Elimination-Backoff} Consciente de Clústeres L2 y P/E-Cores}
+% ==============================================================================
+
+\subsection{Diseño modular y controles de ablación}
+Tras \texttt{Autores-v2}, la única brecha frente a Anderson quedaba en contención extrema sobre una sola pila ($n=1, u=10\,\% / 50\,\%$). Construimos \texttt{Autores-v3} sobre \texttt{v2} en tres componentes medidos por separado:
+\begin{itemize}
+  \item \textbf{\texttt{pe\_topology.h}:} lee \texttt{/sys/devices/system/cpu/cpu*/cache/index2/shared\_cpu\_list} una sola vez para mapear los 8 P-cores (L2 privada, 2 dominios de 4) y los 16 E-cores (4 clústeres L2 de 4 núcleos, 4 dominios locales).
+  \item \textbf{\texttt{elimination\_table\_v3.h}:} intercambiador \emph{lock-free} de \textbf{una sola palabra atómica de 64 bits} por ranura (\texttt{alignas(128)}), empaquetando valor (32\,b) + versión monotónica (30\,b, sin ABA) + estado de 4 valores (\texttt{EMPTY}, \texttt{PUSH\_WAIT}, \texttt{POP\_WAIT}, \texttt{POP\_GOT}). La tabla se asigna de forma perezosa solo cuando un hilo acumula fallos consecutivos de \texttt{CAS} (usando el relleno libre de \texttt{alignas(128)} de \texttt{atomic\_stack}), garantizando \textbf{0 bytes extra en $n=10^6$}.
+  \item \textbf{Tres variantes + control justo:} \texttt{Autores-v3a} (solo \emph{backoff} ligero P/E en \texttt{CAS}), \texttt{Autores-v3g} (eliminación aleatoria ciega a topología~\cite{hendler2004elimination}), \textbf{\texttt{Autores-v3}} (eliminación particionada por clúster L2 con ventana diferenciada P/E~\cite{liu2022libasl,ouyang2022coreaware}), y \texttt{Anderson-v3} (Anderson + nuestra misma capa L2 como control experimental transparente).
+\end{itemize}
+
+\textbf{Validación:} \texttt{mejoras/test\_correctitud\_v3.cpp} pasó \textbf{ASan+UBSan} y \textbf{TSan (\texttt{setarch -R})} con \textbf{0 errores, 0 fugas y 0 \emph{data races}}, verificando conservación exacta 1:1 de conteo y suma en presencia de lectores concurrentes.
+
+\subsection{Resultados de ablación completa (360 ejecuciones $\times$ 2\,s, 0 fallos)}
+
+El Cuadro~\ref{tab:v3_24h} y las Figuras~\ref{fig:v3_fig5} y~\ref{fig:v3_esc} recogen los resultados de \texttt{correr\_v3.py} (\texttt{jemalloc}, \texttt{numactl -i all}, orden aleatorizado por ronda~\cite{hoefler2015benchmarking}).
+
+\begin{table}[H]
+\centering
+\caption{Ablación completa de \texttt{Autores-v3} en los 6 paneles de la Figura 5 a \textbf{24 hilos} (mediana de 3 rondas $\times$ 2\,s, Mop/s). Entre paréntesis, factor respecto a \texttt{Autores} original.}
+\label{tab:v3_24h}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l r r r r r r r r@{}}
+\toprule
+\textbf{Panel} & \textbf{Autores} & \textbf{v2} & \textbf{v3a (backoff)} & \textbf{v3g (gen.)} & \textbf{Autores-v3 (L2+P/E)} & \textbf{Anderson} & \textbf{And-v3 (ctrl)} & \textbf{Folly} \\
+\midrule
+$n=1, u=1\,\%$ & 19{,}70 & 18{,}48 & 18{,}23 & 19{,}03 & \textbf{19{,}80} (1{,}01$\times$) & 17{,}78 & 18{,}10 & 8{,}73 \\
+$n=1, u=10\,\%$ & 4{,}16 & 6{,}40 & 6{,}68 & 7{,}42 & \textbf{9{,}55} (2{,}30$\times$) & 8{,}78 & 12{,}57 & 4{,}91 \\
+$n=1, u=50\,\%$ & 0{,}96 & 1{,}72 & 1{,}61 & 2{,}22 & \textbf{3{,}66} (3{,}81$\times$) & 2{,}03 & 5{,}09 & 1{,}52 \\
+$n=10, u=1\,\%$ & 130{,}03 & 138{,}99 & 137{,}07 & 138{,}32 & \textbf{137{,}17} (1{,}05$\times$) & 67{,}59 & 72{,}12 & 51{,}13 \\
+$n=10, u=10\,\%$ & 51{,}39 & 55{,}54 & 56{,}37 & 70{,}57 & \textbf{73{,}83} (1{,}44$\times$) & 60{,}81 & 59{,}70 & 37{,}47 \\
+$n=10^6, u=50\,\%$ & 48{,}21 & 65{,}15 & 66{,}36 & 62{,}77 & \textbf{64{,}09} (1{,}33$\times$) & 53{,}92 & 52{,}79 & 47{,}24 \\
+\midrule
+\textbf{RSS ($n=10^6$)} & 1\,075\,MB & 760\,MB & 760\,MB & 763\,MB & \textbf{763\,MB} & 911\,MB & 915\,MB & 1\,056\,MB \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{ablacion_v3_fig5_24h.png}
+  \caption{Ablación de \texttt{Autores-v3} en los 6 paneles de la Figura 5 a 24 hilos: \texttt{Autores-v3} supera a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los 6 paneles.}
+  \label{fig:v3_fig5}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{escalado_v3_contencion.png}
+  \caption{Escalado de 6 a 24 hilos en contención extrema ($n=1, u=50\,\%$ y $u=10\,\%$): \texttt{Autores-v3} invierte la tendencia y escala positivamente al activarse más clústeres E-core (12 $\to$ 18 $\to$ 24 hilos), sacando $+65\,\%$ sobre la eliminación genérica \texttt{v3g}.}
+  \label{fig:v3_esc}
+\end{figure}
+
+\textbf{Conclusiones clave de \texttt{Autores-v3}:}
+\begin{enumerate}
+  \item \textbf{Liderazgo 6 de 6 sobre las implementaciones oficiales:} \texttt{Autores-v3} vence a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los 6 paneles tanto a 1 hilo (sin regresión respecto a \texttt{v2}) como a 24 hilos, con RSS de \textbf{763\,MB} en $n=10^6$ ($-29\,\%$ frente al original).
+  \item \textbf{Impacto causal de la topología L2+P/E:} el \emph{backoff} puro en \texttt{CAS} (\texttt{v3a}) es neutro ($1{,}61$ vs. $1{,}72$\,Mop/s); la eliminación clásica ciega (\texttt{v3g}) sube a $2{,}22$\,Mop/s; y el particionado por clúster L2 + P/E (\texttt{v3}) añade otro \textbf{$+65\,\%$} ($3{,}66$\,Mop/s), logrando escalado positivo de 12 a 24 hilos ($2{,}63 \to 3{,}08 \to 3{,}66$).
+  \item \textbf{Lectura honesta del control \texttt{Anderson-v3}:} la capa L2 también acelera a Anderson en $n=1, u=10/50\,\%$ ($12{,}57$ y $5{,}09$\,Mop/s) porque sus lecturas \texttt{front()} usan \emph{snapshots} sin modificar \texttt{head}; sin embargo, \texttt{Autores-v3} supera incluso a \texttt{Anderson-v3} en los otros 4 paneles ($n=1\,u=1\,\%$, $n=10\,u=1/10\,\%$, $n=10^6$) y mantiene liberación inmediata (0 bloques diferidos).
+\end{enumerate}
+
+% ==============================================================================
+\section{Siguiente Paso: \texttt{Autores-v4} (\texttt{compare\_and\_set} \emph{Wait-Free})}
+% ==============================================================================
+
+Con \texttt{v1 + v2 + v3} resueltos los cuellos de botella de rendimiento y memoria en los 6 escenarios, el peldaño final \textbf{\texttt{Autores-v4}} aborda la única limitación teórica declarada en \S 5.1 del artículo original~\cite{dewolff2024waitfree}: hacer \texttt{compare\_and\_set} verdaderamente \emph{wait-free} mediante el esquema \emph{Fast-Path / Slow-Path Helping}~\cite{kogan2012methodology,timnat2014simulation,nikolaev2024crystalline}, garantizando progreso acotado incluso bajo bombardeo adversarial continuo de lectores.
+
+\bibliographystyle{plain}
+\bibliography{referencias_mejoras}
+
+\end{document}

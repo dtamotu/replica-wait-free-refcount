@@ -23,8 +23,8 @@ Toda modificación se evalúa en **ablación estricta** frente al código origin
 |---|---|---|---|
 | **1. `Autores-v1`** | `CAS` sin copias por valor, pre-chequeo antes de incrementar `new_cb`, `memory_order_relaxed` en incrementos locales y ablación de `_mm_pause()` | **Implementado, validado y medido** | [atomic_shared_ptr_v1.h](atomic_shared_ptr_v1.h) · [resumen_v1_v2.md](resultados_v1_v2/resumen_v1_v2.md) |
 | **2. `Autores-v2`** | Todo `v1` + bloque de control *in-place* sin *vtable* (1 asignación), `shared_ptr<T>` de 8 B y `load()` sin indirección extra | **Implementado, validado y medido** | [atomic_shared_ptr_v2.h](atomic_shared_ptr_v2.h) · [resumen_v1_v2.md](resultados_v1_v2/resumen_v1_v2.md) |
-| **3. `Autores-v3`** | *Elimination-Backoff* consciente de clústeres L2 en la pila de Treiber + *backoff* adaptativo P-core / E-core | **Siguiente etapa** | En desarrollo sobre `v2` |
-| **4. `Autores-v4`** | `compare_and_set` verdaderamente *wait-free* mediante *Fast-Path / Slow-Path Helping* (cierra §5.1 del paper) | **Planificado** | Diseño documentado en `docs/01_propuestas_detalladas.md` |
+| **3. `Autores-v3`** | *Elimination-Backoff* consciente de clústeres L2 en la pila de Treiber + *backoff* adaptativo P-core / E-core | **Implementado, validado y medido** | [atomic_shared_ptr_v3.h](atomic_shared_ptr_v3.h) · [elimination_table_v3.h](elimination_table_v3.h) · [resumen_v3.md](resultados_v3/resumen_v3.md) |
+| **4. `Autores-v4`** | `compare_and_set` verdaderamente *wait-free* mediante *Fast-Path / Slow-Path Helping* (cierra §5.1 del paper) | **Siguiente etapa** | En desarrollo sobre `v2` |
 
 ## Pruebas, automatización y resultados (`v1 + v2`)
 
