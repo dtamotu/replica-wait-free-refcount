@@ -29,7 +29,7 @@
     linkcolor=azul,
     urlcolor=azul,
     citecolor=azul,
-    pdftitle={Mejoras al Conteo de Referencias Wait-Free de Euro-Par 2024: Autores-v1, v2 y v3},
+    pdftitle={Mejoras al Conteo de Referencias Wait-Free de Euro-Par 2024: Autores-v1, v2, v3 y v4},
     pdfauthor={David Tamo Turpo, Jheremy Manuel Alvarez Astete, Diego Quispe Candelario}
 }
 
@@ -37,13 +37,13 @@
 \setlength{\parskip}{4pt}
 \setlength{\parindent}{0pt}
 \renewcommand{\arraystretch}{1.14}
-\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}}
+\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}}
 
 \title{%
   {\small\color{acento}\textbf{EXTENSIÓN E INVESTIGACIÓN ORIGINAL SOBRE LA RÉPLICA DE EURO-PAR 2024}}\\[4pt]
-  \textbf{\LARGE Mejoras al Conteo de Referencias \emph{Wait-Free}: Ablación de \texttt{Autores-v1}, \texttt{v2} y \texttt{v3} en Arquitectura Híbrida}\\[6pt]
-  {\large Higiene de \texttt{CAS}, bloque de control \emph{in-place}, \emph{Elimination-Backoff} consciente de clústeres L2 y P/E-cores,\\
-  y hoja de ruta hacia \texttt{Autores-v4} (\texttt{CAS} \emph{wait-free})}
+  \textbf{\LARGE Mejoras al Conteo de Referencias \emph{Wait-Free}: Ablación Completa de \texttt{Autores-v1} a \texttt{Autores-v4} en Arquitectura Híbrida}\\[6pt]
+  {\large Higiene de \texttt{CAS}, bloque de control \emph{in-place}, \emph{Elimination-Backoff} L2+P/E\\
+  y \texttt{compare\_and\_set} sin inanición mediante \emph{Fast-Path / Slow-Path}}
 }
 \author{%
   David Tamo Turpo \and Jheremy Manuel Alvarez Astete \and Diego Quispe Candelario\\[4pt]
@@ -57,9 +57,9 @@
 
 \begin{abstract}
 \noindent
-Partiendo de nuestra réplica experimental del artículo de Euro-Par 2024~\cite{dewolff2024waitfree,dewolff2024artifact} sobre un procesador híbrido \textbf{Intel Core Ultra 9 285} (8 P-cores + 16 E-cores en 4 clústeres L2, 1 módulo DDR5-5600), presentamos la implementación, verificación y evaluación en ablación de tres mejoras incrementales directas sobre \texttt{Autores} (\texttt{ivo::atomic\_shared\_ptr}): \textbf{\texttt{Autores-v1}} (higiene de \texttt{CAS} sin copias y pre-chequeo previo), \textbf{\texttt{Autores-v2}} (bloque de control \emph{in-place} de asignación única y \texttt{shared\_ptr} de 8 bytes) y \textbf{\texttt{Autores-v3}} (\emph{Elimination-Backoff} linealizable de una palabra atómica particionado por clúster L2 y tipo de núcleo P/E).
+Partiendo de nuestra réplica experimental del artículo de Euro-Par 2024~\cite{dewolff2024waitfree,dewolff2024artifact} sobre un procesador híbrido \textbf{Intel Core Ultra 9 285} (8 P-cores + 16 E-cores en 4 clústeres L2, 1 módulo DDR5-5600), presentamos la implementación, verificación formal con sanitizers y evaluación en ablación de \textbf{las cuatro mejoras incrementales} directas sobre \texttt{Autores} (\texttt{ivo::atomic\_shared\_ptr}): \textbf{\texttt{Autores-v1}} (higiene de \texttt{CAS} sin copias y pre-chequeo previo), \textbf{\texttt{Autores-v2}} (bloque de control \emph{in-place} de asignación única y \texttt{shared\_ptr} de 8 bytes), \textbf{\texttt{Autores-v3}} (\emph{Elimination-Backoff} linealizable de una palabra atómica particionado por clúster L2 y tipo de núcleo P/E) y \textbf{\texttt{Autores-v4}} (\texttt{compare\_and\_set} sin inanición mediante \emph{Fast-Path / Slow-Path} híbrido cerrando \S 5.1 del paper).
 
-Todas las variantes pasaron \textbf{ASan+UBSan}, \textbf{TSan} (0 \emph{data races}), recarga forzada ($P=32, C=64$) y \texttt{bench\_basura}, preservando \texttt{load}/\texttt{store} \emph{wait-free} y liberación inmediata (0 bloques diferidos frente a $\approx 29\,000$ en Anderson). Sobre \textbf{705 ejecuciones de rendimiento}, \textbf{195 filas de latencia controlada} y \textbf{42 de memoria retenida} (0 fallos), \textbf{\texttt{Autores-v3} supera a \texttt{Autores} original, \texttt{Anderson} y \texttt{Folly} en los 6 de 6 paneles de la Figura~5 tanto a 1 hilo como a 24 hilos}: logra \textbf{3{,}66\,Mop/s ($3{,}81\times$ sobre el original, $+80\,\%$ sobre Anderson y $+65\,\%$ sobre eliminación ciega a topología)} en $n=1, u=50\,\%$ con escalado positivo de 12 a 24 hilos, alcanza \textbf{64{,}09--65{,}98\,Mop/s} en $n=10^6$ con \textbf{$-29\,\%$ de RSS} ($1\,075 \to 763$\,MB), demuestra que \texttt{\_mm\_pause()} y el \emph{backoff} puro en \texttt{CAS} no resuelven la contención en Arrow Lake, y resuelve causalmente la bimodalidad de latencia como colocación P-core ($414$\,ns) frente a E-core ($1\,408$\,ns).
+Todas las variantes pasaron \textbf{ASan+UBSan}, \textbf{TSan} (0 \emph{data races}), recarga forzada ($P=32, C=64$) y \texttt{bench\_basura} (0 bloques diferidos frente a $25\,524\text{--}29\,094$ en Anderson). Sobre \textbf{885 ejecuciones de rendimiento}, \textbf{195 filas de latencia controlada}, \textbf{50 corridas adversariales} (23 lectores vs. 1 escritor \texttt{CAS}) y \textbf{84 filas de memoria retenida}: (1) \textbf{\texttt{Autores-v2}} rompe el techo de $n=10^6$ ($+81\,\%$ a 1\,h, $+39\,\%$ a 24\,h, $-29{,}3\,\%$ de RSS) y resuelve causalmente la bimodalidad de latencia como colocación P-core ($414$\,ns) frente a E-core ($1\,408$\,ns); (2) \textbf{\texttt{Autores-v3}} supera a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los \textbf{6 de 6 paneles de la Figura~5} a 1 y 24 hilos, logrando \textbf{3{,}66\,Mop/s ($3{,}81\times$ sobre el original, $+80\,\%$ sobre Anderson y $+65\,\%$ sobre eliminación ciega a topología)} en $n=1, u=50\,\%$ con escalado positivo de 12 a 24 hilos; y (3) bajo el ataque adversarial híbrido (escritor \texttt{CAS} en E-core contra 23 lectores incluyendo los 8 P-cores), \textbf{\texttt{Autores-v4}} alcanza \textbf{210{,}0\,Kops/s ($4{,}7\times$ sobre \texttt{v2} y $700\times$ sobre Folly)}, reduciendo \texttt{p99,95} en \textbf{$38\times$} ($549 \to 14{,}3\,\mu$s) y la latencia máxima en \textbf{$90\times$} frente a Anderson ($11{,}1\,$ms $\to 124\,\mu$s).
 \end{abstract}
 
 \tableofcontents
@@ -81,7 +81,7 @@ Todas las variantes pasaron \textbf{ASan+UBSan}, \textbf{TSan} (0 \emph{data rac
 \textbf{1. \texttt{Autores-v1}} & Paso por referencia en \texttt{CAS}, pre-chequeo previo a incrementar \texttt{new\_cb}, \texttt{relaxed} local y ablación de \texttt{\_mm\_pause()}. & Mellor-Crummey \& Scott~\cite{mellorcrummey1991mcs}, de Wolff et al.~\cite{dewolff2024waitfree}, Anderson et al.~\cite{anderson2022turning} & \textcolor{ok}{\textbf{Hecha y medida}} \\
 \textbf{2. \texttt{Autores-v2}} & Bloque de control \emph{in-place} sin \emph{vtable} (1 asignación), \texttt{shared\_ptr} de 8\,B y \texttt{load()} sin indirección extra. & de Wolff et al. \S 2.1~\cite{dewolff2024waitfree}, Dimov \& Dawes N2351~\cite{dimov2007n2351}, Anderson et al.~\cite{anderson2022turning}, Mytkowicz et al.~\cite{mytkowicz2009wrongdata} & \textcolor{ok}{\textbf{Hecha y medida}} \\
 \textbf{3. \texttt{Autores-v3}} & \emph{Elimination-Backoff} de 1 palabra atómica particionado por clúster L2 + ventanas P/E-core y asignación perezosa. & Hendler et al.~\cite{hendler2004elimination}, Liu et al. LibASL~\cite{liu2022libasl}, Ouyang \& Zhu~\cite{ouyang2022coreaware}, Schöne et al.~\cite{schone2024alderlake} & \textcolor{ok}{\textbf{Hecha y medida}} \\
-\textbf{4. \texttt{Autores-v4}} & \texttt{compare\_and\_set} \emph{wait-free} mediante \emph{Fast-Path / Slow-Path Helping} (cierra \S 5.1). & de Wolff et al. \S 5.1~\cite{dewolff2024waitfree}, Kogan \& Petrank~\cite{kogan2012methodology}, Timnat \& Petrank~\cite{timnat2014simulation}, Nikolaev \& Ravindran~\cite{nikolaev2024crystalline} & \textcolor{acento}{\textbf{Siguiente etapa}} \\
+\textbf{4. \texttt{Autores-v4}} & \texttt{compare\_and\_set} sin inanición mediante \emph{Fast-Path / Slow-Path} híbrido (ranuras locales + \texttt{rc\_try\_increment}, cierra \S 5.1). & de Wolff et al. \S 5.1~\cite{dewolff2024waitfree}, Kogan \& Petrank~\cite{kogan2012methodology}, Timnat \& Petrank~\cite{timnat2014simulation}, Nikolaev \& Ravindran~\cite{nikolaev2024crystalline} & \textcolor{ok}{\textbf{Hecha y medida}} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -202,10 +202,82 @@ $n=10^6, u=50\,\%$ & 48{,}21 & 65{,}15 & 66{,}36 & 62{,}77 & \textbf{64{,}09} (1
 \end{enumerate}
 
 % ==============================================================================
-\section{Siguiente Paso: \texttt{Autores-v4} (\texttt{compare\_and\_set} \emph{Wait-Free})}
+\section{\texttt{Autores-v4}: \texttt{compare\_and\_set} Sin Inanición (\emph{Fast-Path / Slow-Path})}
 % ==============================================================================
 
-Con \texttt{v1 + v2 + v3} resueltos los cuellos de botella de rendimiento y memoria en los 6 escenarios, el peldaño final \textbf{\texttt{Autores-v4}} aborda la única limitación teórica declarada en \S 5.1 del artículo original~\cite{dewolff2024waitfree}: hacer \texttt{compare\_and\_set} verdaderamente \emph{wait-free} mediante el esquema \emph{Fast-Path / Slow-Path Helping}~\cite{kogan2012methodology,timnat2014simulation,nikolaev2024crystalline}, garantizando progreso acotado incluso bajo bombardeo adversarial continuo de lectores.
+\subsection{Diseño híbrido y solución del problema de reentrancia en destrucción recursiva}
+Para cerrar la limitación teórica del \S 5.1~\cite{dewolff2024waitfree} sin añadir sobrecosto en el caso común, \texttt{Autores-v4} (\texttt{mejoras/atomic\_shared\_ptr\_v4.h}) combina el conteo ponderado \emph{wait-free} de \texttt{Autores-v2} en el camino rápido con protección por ranura local de lectura (\emph{hazard slot}) en el camino lento~\cite{kogan2012methodology,timnat2014simulation,nikolaev2024crystalline}:
+\begin{enumerate}
+  \item \textbf{Camino rápido (\texttt{slow\_writers == 0}):} \texttt{load()} ejecuta exactamente un \texttt{fetch\_add(pack\_tag(1))}, \texttt{store()} un \texttt{exchange()}, y \texttt{reclaim\_or\_retire()} libera la memoria en el acto tras verificar \texttt{active\_hp\_readers == 0} (0 bloques diferidos en \texttt{bench\_basura}).
+  \item \textbf{Camino lento (\texttt{retries} $\ge K=4$ por cambios de \texttt{tag}):} el escritor incrementa \texttt{slow\_writers} (en la misma línea de caché de \texttt{tagged\_pointer}). Los lectores desvían a \texttt{load\_slow\_path()}, protegiendo el puntero observado en su ranura privada \texttt{hp[tid]} y ejecutando \texttt{rc\_try\_increment\_one()} (solo si \texttt{rc > 0}, evitando resurrección), \textbf{sin emitir escrituras sobre \texttt{tagged\_pointer}}. Así \texttt{tag} queda estacionario (a lo sumo $P-1$ lectores en vuelo), el \texttt{CAS} termina en $O(P)$ pasos y ningún lector bloquea si el escritor es expulsado.
+  \item \textbf{Seguridad ante reentrancia recursiva:} durante la validación en 24 hilos sobre pilas enlazadas descubrimos y corregimos un fallo sutil de reentrancia en \texttt{drain\_local()}: destruir \texttt{Node} invoca \texttt{\~{}shared\_ptr(next)}, re-entrando en \texttt{reclaim\_or\_retire()}. Intercambiar el vector local a un lote temporal con guarda \texttt{draining} eliminó por completo el fallo, pasando \textbf{ASan+UBSan} y \textbf{TSan (\texttt{setarch -R})} con 0 errores, 0 fugas y 0 \emph{data races} sobre pila de Treiber recursiva a 16 hilos y estrés adversarial.
+\end{enumerate}
+
+\subsection{Ataque adversarial \S 5.1 (23 lectores continuos vs. 1 escritor \texttt{CAS})}
+
+Evaluamos \texttt{bench\_adversarial\_v4} durante 5 rondas $\times$ 2\,s en dos cortes de afinidad controlada: escritor fijado en P-core (\texttt{cpu2}) y el \textbf{ataque híbrido extremo de Arrow Lake} con el escritor fijado en E-core (\texttt{cpu8}) frente a 23 lectores incluyendo los 8 P-cores rápidos (Cuadro~\ref{tab:adv_v4} y Figura~\ref{fig:adv_v4}).
+
+\begin{table}[H]
+\centering
+\caption{Ataque adversarial \S 5.1 (23 lectores continuos vs. 1 escritor \texttt{CAS}, mediana de 5 rondas $\times$ 2\,s).}
+\label{tab:adv_v4}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l l r r r r r r@{}}
+\toprule
+\textbf{Corte} & \textbf{Algoritmo} & \textbf{p50 (ns)} & \textbf{p99 (ns)} & \textbf{p99,95 (ns)} & \textbf{Máx (ns)} & \textbf{Escritor (Kops/s)} & \textbf{Lectores (Mop/s)} \\
+\midrule
+\multirow{5}{*}{Escritor P-core} & Autores & 1\,165 & 3\,049 & 4\,153 & 507\,201 & 779{,}2 & 20{,}87 \\
+ & Autores-v2 & 1\,335 & 2\,577 & 3\,880 & 140\,067 & 717{,}4 & 23{,}78 \\
+ & \textbf{Autores-v4} & \textbf{1\,068} & \textbf{2\,079} & \textbf{3\,043} & 684\,632 & \textbf{908{,}2} & 17{,}19 \\
+ & Anderson & 1\,156 & 2\,974 & 4\,305 & 11\,195\,337 & 788{,}1 & 21{,}10 \\
+ & Folly & 3\,887 & 54\,489 & 957\,962 & 1\,597\,956 & 119{,}8 & 9{,}86 \\
+\midrule
+\multirow{5}{*}{\textbf{Escritor E-core}} & Autores & 7\,366 & 87\,788 & 259\,481 & 746\,501 & 98{,}7 & 22{,}76 \\
+ & Autores-v2 & 14\,414 & 138\,776 & 549\,332 & 745\,706 & 44{,}4 & 23{,}74 \\
+ & \textbf{Autores-v4} & \textbf{5\,182} & \textbf{10\,748} & \textbf{14\,305} & \textbf{124\,060} & \textbf{210{,}0} & 15{,}54 \\
+ & Anderson & 5\,136 & 17\,966 & 23\,857 & 11\,116\,882 & 159{,}4 & 16{,}58 \\
+ & Folly & 2\,476\,727 & 15\,559\,044 & 18\,707\,672 & 25\,110\,782 & 0{,}3 & 10{,}76 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{adversarial_v4_latencia.png}
+  \caption{Latencia del escritor \texttt{CAS} (escala logarítmica, $\mu$s) bajo bombardeo continuo de 23 lectores: en el ataque híbrido con escritor en E-core (der.), \texttt{Autores-v4} reduce \texttt{p99,95} en $38\times$ frente a \texttt{v2} y la latencia máxima en $90\times$ frente a Anderson, multiplicando por $4{,}7\times$ el rendimiento del escritor.}
+  \label{fig:adv_v4}
+\end{figure}
+
+\subsection{Sobrecosto en camino rápido y memoria retenida (\texttt{bench\_basura})}
+
+En los 6 paneles de la Figura~5 a \textbf{1 hilo}, \texttt{Autores-v4} presenta \textbf{0\,\% de sobrecosto} frente a \texttt{Autores-v2} ($1{,}00\times\text{--}1{,}03\times$: $101{,}04$ vs. $99{,}12$ en $n=1, u=1\,\%$; $28{,}31$ vs. $28{,}34$ en $n=1, u=50\,\%$; $5{,}84$ vs. $5{,}68$ en $n=10^6$). A \textbf{24 hilos}, mantiene un sobrecosto acotado en $n=1, u=50\,\%$ ($1{,}49$ vs. $1{,}61$, $0{,}93\times$) y $n=10^6$ ($63{,}71$ vs. $69{,}44$, $0{,}92\times$, aún $+29\,\%$ sobre \texttt{Autores} original y $+9\,\%$ sobre Anderson), mientras en cargas muy dominadas por lecturas concurrentes ($n=10, u=1\,\%$: $85{,}21$ vs. $136{,}72$, $0{,}62\times$, aún por encima de Anderson $71{,}32$ y Folly $50{,}55$) el umbral $K=4$ activa el contador global \texttt{active\_hp\_readers}, ilustrando con transparencia el compromiso clásico entre progreso \emph{lock-free} y protección contra inanición. En \texttt{bench\_basura}, \texttt{Autores-v4} conserva \textbf{0 bloques diferidos} (pico de \textbf{21} bloques a 8\,h y \textbf{55} a 24\,h frente a \textbf{25\,524} de Anderson).
+
+% ==============================================================================
+\section{Síntesis Final de las Cuatro Mejoras}
+% ==============================================================================
+
+\begin{table}[H]
+\centering
+\caption{Comparativa integrada de la evolución \texttt{Autores} $\to$ \texttt{v1} $\to$ \texttt{v2} $\to$ \texttt{v3} $\to$ \texttt{v4} en Intel Core Ultra 9 285.}
+\label{tab:sintesis_final}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l c c c c c@{}}
+\toprule
+\textbf{Métrica clave (24 hilos)} & \textbf{Autores (orig.)} & \textbf{Autores-v1} & \textbf{Autores-v2} & \textbf{Autores-v3} & \textbf{Autores-v4} \\
+\midrule
+$n=1, u=50\,\%$ (Mop/s) & 0{,}96--1{,}03 & 1{,}48 & 1{,}63--1{,}72 & \textbf{3{,}66 ($3{,}81\times$)} & 1{,}49 \\
+$n=10, u=10\,\%$ (Mop/s) & 51{,}39--55{,}51 & 53{,}51 & 55{,}54--56{,}28 & \textbf{73{,}83 ($1{,}44\times$)} & 47{,}98 \\
+$n=10^6, u=50\,\%$ (Mop/s) & 47{,}31--48{,}21 & 49{,}30 & \textbf{65{,}98 ($1{,}39\times$)} & 64{,}09 & 63{,}71 \\
+Pico RSS en $n=10^6$ (MB) & 1\,075 & 1\,075 & \textbf{760 ($-29{,}3\,\%$)} & 763 & 760 \\
+Ataque E-core 23L+1E (\texttt{p99,95} / Kops/s) & 259\,$\mu$s / 98{,}7 & — & 549\,$\mu$s / 44{,}4 & — & \textbf{14{,}3\,$\mu$s / 210{,}0} \\
+Memoria retenida (\texttt{bench\_basura}, 24\,h) & 54 (0 dif.) & 52 (0 dif.) & 53 (0 dif.) & 53 (0 dif.) & 55 (0 dif.) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Cada peldaño resuelve un cuello de botella distinto y medible de la réplica de Euro-Par 2024: \texttt{v1+v2} corrigen la implementación C++ oficial hasta dominar $n=10^6$ y la latencia P-core; \texttt{v3} convierte la topología híbrida L2+P/E de Arrow Lake en ventaja competitiva alcanzando liderazgo \textbf{6 de 6} frente a los algoritmos originales; y \texttt{v4} cierra la vulnerabilidad de inanición del \S 5.1 bajo ataques adversariales de lectores rápidos contra escritores en núcleos lentos.
 
 \bibliographystyle{plain}
 \bibliography{referencias_mejoras}

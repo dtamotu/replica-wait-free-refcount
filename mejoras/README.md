@@ -14,8 +14,9 @@ Toda modificación se evalúa en **ablación estricta** frente al código origin
 
 ## Informe LaTeX y PDF
 
-- **[informe_latex/informe_mejoras_v1_v2.tex](informe_latex/informe_mejoras_v1_v2.tex)** y **[informe_latex/referencias_mejoras.bib](informe_latex/referencias_mejoras.bib)** — Fuente LaTeX del informe de mejoras (`v1` y `v2` + hoja de ruta `v3`/`v4`).
-- **[informe_latex/informe_mejoras_v1_v2.pdf](informe_latex/informe_mejoras_v1_v2.pdf)** — PDF compilado listo para lectura y entrega.
+- **[informe_latex/informe_mejoras_completo.tex](informe_latex/informe_mejoras_completo.tex)** y **[informe_latex/referencias_mejoras.bib](informe_latex/referencias_mejoras.bib)** — Informe completo de las 4 mejoras (`v1`, `v2`, `v3` y `v4`).
+- **[informe_latex/informe_mejoras_completo.pdf](informe_latex/informe_mejoras_completo.pdf)** — PDF compilado completo con todas las tablas, análisis de ablación y figuras.
+- *(Versión histórica de la primera etapa: [informe_mejoras_v1_v2.pdf](informe_latex/informe_mejoras_v1_v2.pdf).)*
 
 ## Estado actual de la escalera
 
@@ -24,7 +25,7 @@ Toda modificación se evalúa en **ablación estricta** frente al código origin
 | **1. `Autores-v1`** | `CAS` sin copias por valor, pre-chequeo antes de incrementar `new_cb`, `memory_order_relaxed` en incrementos locales y ablación de `_mm_pause()` | **Implementado, validado y medido** | [atomic_shared_ptr_v1.h](atomic_shared_ptr_v1.h) · [resumen_v1_v2.md](resultados_v1_v2/resumen_v1_v2.md) |
 | **2. `Autores-v2`** | Todo `v1` + bloque de control *in-place* sin *vtable* (1 asignación), `shared_ptr<T>` de 8 B y `load()` sin indirección extra | **Implementado, validado y medido** | [atomic_shared_ptr_v2.h](atomic_shared_ptr_v2.h) · [resumen_v1_v2.md](resultados_v1_v2/resumen_v1_v2.md) |
 | **3. `Autores-v3`** | *Elimination-Backoff* consciente de clústeres L2 en la pila de Treiber + *backoff* adaptativo P-core / E-core | **Implementado, validado y medido** | [atomic_shared_ptr_v3.h](atomic_shared_ptr_v3.h) · [elimination_table_v3.h](elimination_table_v3.h) · [resumen_v3.md](resultados_v3/resumen_v3.md) |
-| **4. `Autores-v4`** | `compare_and_set` verdaderamente *wait-free* mediante *Fast-Path / Slow-Path Helping* (cierra §5.1 del paper) | **Siguiente etapa** | En desarrollo sobre `v2` |
+| **4. `Autores-v4`** | `compare_and_set` sin inanición (*Fast-Path / Slow-Path* híbrido con protección por ranura local + `rc_try_increment`, cierra §5.1) | **Implementado, validado y medido** | [atomic_shared_ptr_v4.h](atomic_shared_ptr_v4.h) · [bench_adversarial_v4.cpp](bench_adversarial_v4.cpp) · [resumen_v4.md](resultados_v4/resumen_v4.md) |
 
 ## Pruebas, automatización y resultados (`v1 + v2`)
 

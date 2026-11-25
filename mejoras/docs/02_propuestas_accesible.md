@@ -66,17 +66,21 @@ Piensa en qué pasa cuando un bibliotecario llega a **dejar** un libro (`push`) 
 
 ---
 
-## Mejora 4 (`Autores-v4`): «Ayuda solidaria para que nadie se quede atascado nunca» *(Siguiente paso)*
+## Mejora 4 (`Autores-v4`): «Lectura silenciosa para que nadie se quede atascado nunca» *(Ya hecha y probada)*
 
-### Qué problema teórico deja abierto el paper original
+### Qué problema teórico dejaba abierto el paper original
 El propio paper admite una pequeña trampa en su sección 5.1:
 - **Leer (`load`)** y **escribir a la fuerza (`store`)** están 100 % garantizados contra atascos (*wait-free*).
-- Pero **cambiar solo si nadie tocó (`compare_and_set`)** NO es *wait-free*: si 23 lectores no paran de entrar a leer el tablón, cada lector mueve el numerito de peso del tablón, y el escritor que intenta cambiar el libro falla una y otra vez — en teoría, podría quedarse intentando para siempre (inanición).
+- Pero **cambiar solo si nadie tocó (`compare_and_set`)** NO es *wait-free*: si 23 lectores no paran de entrar a leer el tablón, cada lector mueve el numerito de peso del tablón, y el escritor que intenta cambiar el libro falla una y otra vez — especialmente si el escritor trabaja en un **núcleo E (lento)** mientras **8 núcleos P (rápidos)** leen sin parar.
 
-### Cómo funciona la idea (*Fast-Path / Slow-Path Helping*)
-1. **Camino rápido (99.9 % de las veces):** el escritor intenta cambiar el tablón normal, igual de rápido que `Autores-v2`.
-2. **Botón de ayuda (camino lento):** si falla demasiadas veces seguidas (por ejemplo 8 o 16 veces), anota su pedido en una **pizarra de emergencias** y prende un foquito (1 bit del puntero).
-3. **Ayuda cooperativa:** los siguientes bibliotecarios que llegan a leer ven el foquito prendido y, antes de hacer lo suyo, **le ayudan a completar su cambio**. Así nadie puede quedarse atascado para siempre: el algoritmo pasa a ser **100 % *wait-free* en todas sus operaciones** (`load`, `store` y `compare_and_set`).
+### Cómo funciona lo que implementamos (*Fast-Path / Slow-Path* híbrido)
+1. **Camino rápido (99.9 % del tiempo):** todo funciona exactamente igual que `Autores-v2` (sin sobrecosto con 1 hilo y 0 basura diferida).
+2. **Alarma de lector silencioso (camino lento):** si el escritor falla 4 veces seguidas solo porque los lectores están moviendo el numerito del tablón, prende una banderita (`slow_writers`).
+3. **Lectores sin tocar el tablón:** al ver la banderita, los lectores dejan de tocar el tablón y anotan el libro en su **ficha personal** antes de leerlo. Como el numerito del tablón deja de moverse, el escritor completa su cambio al instante — y si el escritor se detuviera, ningún lector se queda esperando.
+
+### Qué pasó al medirlo en tu PC (ataque de 23 lectores vs 1 escritor CAS)
+- **Escritor en núcleo E (ataque híbrido extremo):** `Folly` prácticamente se congela (**0.3 Kops/s**, picos de **25 ms**), `Autores-v2` cae a **44.4 Kops/s** (`p99.95 = 549 µs`), `Anderson` sufre picos de **11.1 ms**, y **`Autores-v4`** salta a **210.0 Kops/s (`4.7×` sobre `v2`)**, baja `p99.95` a **14.3 µs (`38×` menos)** y el peor pico a **124 µs (`90×` menos que Anderson)**, manteniendo **0 bloques diferidos** en `bench_basura`.
+- **Compromiso honesto:** a 1 hilo tiene **0 % sobrecosto**, mientras a 24 hilos en cargas de lectura pura (`n = 10, u = 1 %`) pagar esta protección reduce un poco el máximo (`85` vs `137 Mop/s`, aún por encima de Anderson `71` y Folly `51`).
 
 ---
 
@@ -86,5 +90,5 @@ El propio paper admite una pequeña trampa en su sección 5.1:
 |---|---|---|---|
 | **`Autores-v1`** | Mirar el tablón antes de firmar 6 papeles | Pelea de escritores (`n=1`) | **Hecha (+44 % en `n=1, u=50%`)** |
 | **`Autores-v2`** | Pegar la libreta a la tapa del libro | Tráfico de RAM (`n=10⁶`) y tamaño en memoria | **Hecha (+39–81 % en `n=10⁶`, −29 % RSS, +58 % en `n=1`)** |
-| **`Autores-v3`** | Mesas locales de intercambio `push`↔`pop` por grupo L2 | Vencer a Anderson en `n=1, u=50%` | **Siguiente** |
-| **`Autores-v4`** | Pizarra de ayuda cuando alguien falla muchas veces | Cerrar la última brecha *wait-free* del §5.1 del paper | **Planificada** |
+| **`Autores-v3`** | Mesas locales de intercambio `push`↔`pop` por grupo L2 | Vencer a Anderson en `n=1, u=50%` (6 de 6) | **Hecha (`3.81×` en `n=1, u=50%`, escalado positivo)** |
+| **`Autores-v4`** | Lectura silenciosa cuando un escritor sufre inanición | Cerrar la brecha de inanición §5.1 del paper | **Hecha (`4.7×` throughput, `38×` menos `p99.95` en ataque E-core)** |

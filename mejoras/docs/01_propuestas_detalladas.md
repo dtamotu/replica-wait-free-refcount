@@ -126,6 +126,14 @@ Se descompone en dos componentes medibles por separado en ablación:
   - *Throughput* y latencia de cola (`p99`, `p99.95`, `máx`) del escritor `CAS` bajo ataque adversarial de 23 lectores continuos: en `Autores` original el escritor puede sufrir latencias extremas o inanición; en `Autores-v4` el número de reintentos y la latencia máxima quedan acotados.
   - Sobrecosto en camino rápido (`n = 10`, `n = 10⁶`, `p = 1`): meta `< 3 %` frente a `Autores-v2`.
 
+### Resultado empírico medido (`resultados_v4/resumen_v4.md`, 50 corridas adversariales + 180 de camino rápido + 3 rondas `bench_basura`)
+- **Implementación ([`mejoras/atomic_shared_ptr_v4.h`](../atomic_shared_ptr_v4.h)):** esquema híbrido *Fast-Path / Slow-Path*: en camino rápido (`slow_writers == 0`) ejecuta el mismo `fetch_add` de `Autores-v2`; cuando un escritor en `compare_and_set` acumula $K = 4$ fallos por cambios de `tag`, incrementa `slow_writers`, haciendo que los lectores cambien a protección por ranura local (`hp[tid]`) + `rc_try_increment_one()` sin tocar `tagged_pointer` (cero escrituras sobre `tag`, sin bloquear a ningún lector si el escritor es expulsado). Incluye `drain_local()` resistente a reentrancia ante destrucción recursiva de listas enlazadas.
+- **Validación ([`test_correctitud_v4.cpp`](../test_correctitud_v4.cpp)):** **ASan+UBSan** y **TSan (`setarch -R`)** pasados con 0 errores, 0 fugas (`alive=0`) y 0 *data races*, incluyendo estrés adversarial (10 lectores vs 1 escritor, máx. 7–9 reintentos) y pila de Treiber recursiva a 16 hilos. En `bench_basura`: pico de `21` bloques (8 h, límite 42) y `55` (24 h, límite 122) frente a `25 524` de Anderson (**0 bloques diferidos**).
+- **Ataque adversarial §5.1 (23 lectores continuos vs 1 escritor CAS, mediana 5 rondas × 2 s):**
+  - *Ataque híbrido extremo (escritor en E-core cpu8 vs 23 lectores incluyendo los 8 P-cores):* **`Autores-v4`** alcanza **`210.0 Kops/s`** (**4.7×** sobre `Autores-v2 44.4`, **2.1×** sobre `Autores 98.7`, **+32 %** sobre `Anderson 159.4`, **700×** sobre `Folly 0.3`), reduciendo `p99.95` **38×** frente a `v2` (`549 → 14.3 µs`) y `Máx` **90×** frente a `Anderson` (`11.1 ms → 124 µs`).
+  - *Escritor en P-core cpu2:* **`Autores-v4`** lidera `p50` (`1 068 ns`), `p99` (`2 079 ns`), `p99.95` (`3 043 ns`) y *throughput* del escritor (`908.2 Kops/s`).
+- **Compromiso honesto en camino rápido (`bench_stack`):** **0 % sobrecosto a 1 hilo** (`1.00×–1.03×` vs `v2` en los 6 paneles); a 24 hilos, sobrecosto moderado (`0.92×–0.93×`) en `n = 1, u = 50 %` y `n = 10⁶` (`63.71 Mop/s`), y mayor (`0.62×`, `85.21` vs `136.72`) en `n = 10, u = 1 %` cuando $K = 4$ activa frecuentemente el contador global `active_hp_readers`.
+
 ### Respaldo bibliográfico
 - de Wolff et al. (2024), *Euro-Par 2024*, §1.2 y §5.1, DOI `10.1007/978-3-031-69583-4_8`.
 - Kogan & Petrank (2012), *«A Methodology for Creating Fast Wait-Free Data Structures»*, *PPoPP 2012*, DOI `10.1145/2370036.2145835`.
