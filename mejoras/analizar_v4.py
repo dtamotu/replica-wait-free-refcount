@@ -122,6 +122,36 @@ def main():
             row.append(f"{med(vals):,.0f}" if vals else "—")
         md.append("| " + " | ".join(row) + " |")
 
+    lat_path = DIR / "latencia_v4.csv"
+    if lat_path.exists():
+        lat = defaultdict(lambda: defaultdict(list))
+        n_lat = 0
+        with open(lat_path, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                n_lat += 1
+                k = (r["impl"], r["op"], int(r["p"]), r["colocacion"])
+                lat[k]["p50"].append(float(r["p50"]))
+                lat[k]["p99"].append(float(r["p99"]))
+                lat[k]["p9995"].append(float(r["p9995"]))
+        md += [
+            "",
+            f"## 4. Latencia controlada Fig. 6 (`bench_atomic_shared_ptrs`, {n_lat} filas, ns: p50 / p99 / p99.95)",
+            "",
+            "| Operación | Corte | Autores | Autores-v2 | Autores-v4 | Anderson | Folly |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for op in ("load", "store", "store-del"):
+            for p, col, eti in [(1, "P-fijo", "p=1 (P-fijo)"), (24, "todos24-P", "p=24 (todos24-P)"), (24, "todos24-E", "p=24 (todos24-E)")]:
+                row = [op, eti]
+                for a in algs:
+                    d = lat[(a, op, p, col)]
+                    if d["p50"]:
+                        cell = f"{med(d['p50']):,.0f} / {med(d['p99']):,.0f} / {med(d['p9995']):,.0f}"
+                        row.append(f"**{cell}**" if a == "Autores-v4" else cell)
+                    else:
+                        row.append("—")
+                md.append("| " + " | ".join(row) + " |")
+
     (DIR / "resumen_v4.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 
     # Figura: Latencia de cola adversarial (escala log) + Throughput del escritor

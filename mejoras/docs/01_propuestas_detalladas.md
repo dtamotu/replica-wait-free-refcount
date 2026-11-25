@@ -133,6 +133,7 @@ Se descompone en dos componentes medibles por separado en ablación:
   - *Ataque híbrido extremo (escritor en E-core cpu8 vs 23 lectores incluyendo los 8 P-cores):* **`Autores-v4`** alcanza **`210.0 Kops/s`** (**4.7×** sobre `Autores-v2 44.4`, **2.1×** sobre `Autores 98.7`, **+32 %** sobre `Anderson 159.4`, **700×** sobre `Folly 0.3`), reduciendo `p99.95` **38×** frente a `v2` (`549 → 14.3 µs`) y `Máx` **90×** frente a `Anderson` (`11.1 ms → 124 µs`).
   - *Escritor en P-core cpu2:* **`Autores-v4`** lidera `p50` (`1 068 ns`), `p99` (`2 079 ns`), `p99.95` (`3 043 ns`) y *throughput* del escritor (`908.2 Kops/s`).
 - **Compromiso honesto en camino rápido (`bench_stack`):** **0 % sobrecosto a 1 hilo** (`1.00×–1.03×` vs `v2` en los 6 paneles); a 24 hilos, sobrecosto moderado (`0.92×–0.93×`) en `n = 1, u = 50 %` y `n = 10⁶` (`63.71 Mop/s`), y mayor (`0.62×`, `85.21` vs `136.72`) en `n = 10, u = 1 %` cuando $K = 4$ activa frecuentemente el contador global `active_hp_readers`.
+- **Latencia controlada Fig. 6 (`latencia_v4.csv`, 195 filas, 0 fallos):** **0 % de sobrecosto** en `load`/`store`/`store-del` (`p=1`: `14 / 22 / 29 ns`, `p99.95 = 32 ns` vs `7 731 ns` de Anderson; `p=24 todos24-P`: lidera `load` en **`410 ns`** y `store-del` en **`411 ns`** frente a `487`/`432 ns` de Anderson).
 
 ### Respaldo bibliográfico
 - de Wolff et al. (2024), *Euro-Par 2024*, §1.2 y §5.1, DOI `10.1007/978-3-031-69583-4_8`.

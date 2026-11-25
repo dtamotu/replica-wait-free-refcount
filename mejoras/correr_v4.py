@@ -11,6 +11,7 @@
 """
 import argparse
 import csv
+import json
 import os
 import random
 import re
@@ -29,6 +30,7 @@ JEMALLOC = LIBS / "libjemalloc.so.2"
 SHIM = ROOT / "replica/completa/bin/fijar_hilos.so"
 BENCH_STACK = ROOT / "replica/completa/bin/bench_stack"
 BENCH_ADV = ROOT / "replica/completa/bin/bench_adversarial_v4"
+BENCH_LAT = ART / "atomic_shared_ptr/build/benchmark/bench_atomic_shared_ptrs"
 BENCH_BASURA = ART / "atomic_shared_ptr/build/benchmark/bench_basura"
 NUMACTL = ["numactl", "-i", "all"] if shutil.which("numactl") else []
 
@@ -47,6 +49,7 @@ PANELES = [(1, 1), (1, 10), (1, 50), (10, 1), (10, 10), (1000000, 50)]
 CAMPOS_ADV = ["impl", "corte", "ronda", "lectores", "segundos", "p50_ns", "p99_ns", "p9995_ns",
               "max_ns", "writer_kops", "reader_mops", "cas_completados", "temp_c", "codigo"]
 CAMPOS_REND = ["impl", "alg", "n", "u", "hilos", "ronda", "mops", "rss_kb", "segundos_reales", "temp_c", "codigo"]
+CAMPOS_LAT = ["impl", "op", "p", "colocacion", "ronda", "p1", "p25", "p50", "p75", "p99", "p9995", "iteraciones", "temp_c", "codigo"]
 
 
 def temp_max():
@@ -202,6 +205,43 @@ def correr_basura(salida, rondas, segundos):
             print(f"  [v4 basura] ronda {r}/{rondas} cod={cod}", flush=True)
 
 
+def correr_latencia_fig6(salida, rondas_p1, rondas_p24, min_tiempo):
+    reg = Registro(salida / "latencia_v4.csv", CAMPOS_LAT, ["impl", "op", "p", "colocacion", "ronda"])
+    prefijos = {"Autores": "Our", "Autores-v2": "Our-v2", "Autores-v4": "Our-v4",
+                "Anderson": "Parlay", "Folly": "Folly"}
+    tareas = []
+    for impl in prefijos:
+        for r in range(1, rondas_p1 + 1):
+            tareas.append((impl, 1, "P-fijo", [2], 2, r))
+        for r in range(1, rondas_p24 + 1):
+            tareas.append((impl, 24, "todos24-P", NUCLEOS_P + CLUSTERS_E, "lista", r))
+            tareas.append((impl, 24, "todos24-E", CLUSTERS_E + NUCLEOS_P, "lista", r))
+    random.Random(9499).shuffle(tareas)
+    print(f"[v4 latencia Fig.6] {len(tareas)} ejecuciones (min_time={min_tiempo}s)", flush=True)
+    for idx, (impl, p, col, cpus, princ, r) in enumerate(tareas, 1):
+        if reg.hecho(impl=impl, op="load", p=p, colocacion=col, ronda=r):
+            continue
+        pref = prefijos[impl]
+        cmd = [str(BENCH_LAT), f"--benchmark_filter=^{pref}::.*/{p}/manual_time",
+               "--benchmark_format=json", f"--benchmark_min_time={min_tiempo}s"]
+        cod, txt, _, _ = ejecutar(cmd, entorno(jemalloc=False, cpus=cpus, principal=princ), limite=180.0)
+        try:
+            datos = json.loads(txt[txt.index("{"):])
+        except ValueError:
+            print(f"  FALLO lat {impl} p={p} {col}: cod={cod} {txt[-200:]}", file=sys.stderr, flush=True)
+            continue
+        for b in datos.get("benchmarks", []):
+            op = b["name"].split("::")[1].split("/")[0]
+            reg.escribir({
+                "impl": impl, "op": op, "p": p, "colocacion": col, "ronda": r,
+                "p1": f"{b['1%']*1e9:.1f}", "p25": f"{b['25%']*1e9:.1f}", "p50": f"{b['50%']*1e9:.1f}",
+                "p75": f"{b['75%']*1e9:.1f}", "p99": f"{b['99%']*1e9:.1f}", "p9995": f"{b['99.95%']*1e9:.1f}",
+                "iteraciones": b.get("iterations", ""), "temp_c": temp_max(), "codigo": cod,
+            })
+        if idx % 15 == 0 or idx == len(tareas):
+            print(f"  [v4 lat] {idx}/{len(tareas)}  {temp_max()} °C", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--salida", default=str(ROOT / "mejoras/resultados_v4"))
@@ -209,12 +249,18 @@ def main():
     ap.add_argument("--rondas-rend", type=int, default=3)
     ap.add_argument("--segundos", type=float, default=2.0)
     ap.add_argument("--rondas-basura", type=int, default=3)
+    ap.add_argument("--solo-latencia", action="store_true")
     a = ap.parse_args()
     salida = Path(a.salida)
     salida.mkdir(parents=True, exist_ok=True)
+    if a.solo_latencia:
+        correr_latencia_fig6(salida, 3, 5, 0.3)
+        print("LATENCIA V4 TERMINADA", flush=True)
+        return
     correr_adversarial(salida, a.rondas_adv, a.segundos)
     correr_camino_rapido(salida, a.rondas_rend, a.segundos)
     correr_basura(salida, a.rondas_basura, 1.5)
+    correr_latencia_fig6(salida, 3, 5, 0.3)
     print("EXPERIMENTO V4 TERMINADO", flush=True)
 
 

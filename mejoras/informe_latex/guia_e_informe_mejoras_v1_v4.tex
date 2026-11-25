@@ -1,0 +1,380 @@
+% Documento integrado: Guía Accesible («Como Dummie») + Enlaces del Repositorio
+% + Informe Técnico Completo de las 4 Versiones (Autores-v1 a Autores-v4)
+% Compilación (desde mejoras/informe_latex/):
+%   pdflatex guia_e_informe_mejoras_v1_v4.tex && bibtex guia_e_informe_mejoras_v1_v4 && pdflatex guia_e_informe_mejoras_v1_v4.tex && pdflatex guia_e_informe_mejoras_v1_v4.tex
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-nodecimaldot,es-tabla]{babel}
+\spanishplainpercent
+\usepackage{geometry}
+\geometry{margin=2.0cm}
+\usepackage{booktabs,tabularx,array,multirow}
+\usepackage{graphicx,float}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{cite}
+\usepackage{xurl}
+\usepackage{hyperref}
+
+\definecolor{tinta}{HTML}{1B2430}
+\definecolor{gris}{HTML}{5B6573}
+\definecolor{acento}{HTML}{C8551F}
+\definecolor{azul}{HTML}{1F5FA8}
+\definecolor{ok}{HTML}{1B7F3B}
+\definecolor{mal}{HTML}{B3261E}
+\definecolor{suave}{HTML}{F4F6F9}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=azul,
+    urlcolor=azul,
+    citecolor=azul,
+    pdftitle={Guia Accesible e Informe Completo de las 4 Mejoras (Autores-v1 a Autores-v4)},
+    pdfauthor={David Tamo Turpo, Jheremy Manuel Alvarez Astete, Diego Quispe Candelario}
+}
+
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{4.5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}}
+
+\newcommand{\caja}[2]{%
+  \vspace{4pt}%
+  \noindent\fcolorbox{azul}{suave}{%
+    \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}%
+      {\color{azul}\textbf{#1}}\\[3pt]
+      #2
+    \end{minipage}%
+  }%
+  \vspace{4pt}%
+}
+
+\title{%
+  {\small\color{acento}\textbf{COMPUTACIÓN PARALELA Y DISTRIBUIDA --- GUÍA ACCESIBLE E INFORME TÉCNICO}}\\[4pt]
+  \textbf{\LARGE Mejoras al Conteo de Referencias \emph{Wait-Free} (Euro-Par 2024):}\\
+  {\Large Explicación Sencilla e Informe Completo de \texttt{Autores-v1}, \texttt{v2}, \texttt{v3} y \texttt{v4}}
+}
+\author{%
+  David Tamo Turpo \and Jheremy Manuel Alvarez Astete \and Diego Quispe Candelario
+}
+\date{Noviembre de 2026}
+
+\begin{document}
+\emergencystretch=1.5em
+\maketitle
+
+\caja{Enlaces oficiales del proyecto (código, datos crudos, figuras y respaldo)}{%
+  \begin{itemize}
+    \item \textbf{Repositorio con las 4 mejoras (rama \texttt{mejoras-autores}):}\\
+          \url{https://github.com/dtamotu/replica-wait-free-refcount/tree/mejoras-autores}
+    \item \textbf{Repositorio principal de la réplica (rama \texttt{main}):}\\
+          \url{https://github.com/davichiacustico-ux/replica-wait-free-refcount}
+    \item \textbf{Respaldo completo en Google Drive (carpeta \texttt{cpd3}):}\\
+          \url{https://drive.google.com/drive/folders/1y1fLnHIvxchC76hyNCMYdRX1SMm7-bPK}
+    \item \textbf{Artículo original replicado:} de Wolff et al., Euro-Par 2024, DOI \url{https://doi.org/10.1007/978-3-031-69583-4_8}
+  \end{itemize}
+}
+
+\tableofcontents
+\vspace{6pt}
+
+% ==============================================================================
+\part{Explicación Accesible de los Resultados (Sin Jerga Innecesaria)}
+% ==============================================================================
+
+Imagina una \textbf{biblioteca con 24 bibliotecarios} (los 24 núcleos del procesador Intel Core Ultra 9 285) trabajando a toda velocidad sobre unos \textbf{tablones} (las pilas en memoria) donde siempre se anuncia «el libro de arriba». Cada libro lleva una \textbf{libreta de préstamos} (el contador de referencias): si alguien empieza a usarlo suma~1, si lo devuelve resta~1, y el último que deja la libreta en~0 recicla el libro al instante.
+
+El algoritmo del artículo original (\textbf{\texttt{Autores}}) era excelente porque \textbf{no dejaba basura acumulada} —mientras su rival principal, \textbf{\texttt{Anderson}}, amontonaba $\approx 29\,000$ libretas viejas antes de botarlas— y \textbf{leer era rapidísimo}. Sin embargo, al medirlo en nuestra computadora aparecieron \textbf{4 puntos flojos concretos}. A continuación se explica en palabras simples qué arregló cada una de nuestras 4 mejoras y qué ocurrió al medirlas.
+
+\section*{Mejora 1 (\texttt{Autores-v1}): «Mira el tablón antes de firmar 6 papeles inútiles»}
+\addcontentsline{toc}{section}{Mejora 1 (\texttt{Autores-v1}): «Mira el tablón antes de firmar 6 papeles inútiles»}
+\begin{itemize}
+  \item \textbf{Qué pasaba antes:} cuando varios bibliotecarios intentaban cambiar el mismo tablón a la vez, el código C++ original sacaba fotocopias de los libros y firmaba préstamos \textbf{antes siquiera de mirar si alguien ya había cambiado el tablón}. Cada choque desperdiciaba \textbf{6 firmas atómicas}.
+  \item \textbf{Qué pasó al arreglarlo:} en la prueba de pelea máxima (24 bibliotecarios en 1 solo tablón, $n = 1, u = 50\,\%$), el rendimiento subió \textbf{+44\,\%} ($1{,}03 \to 1{,}48$ millones de operaciones por segundo).
+  \item \textbf{Sorpresa (hallazgo negativo honesto):} probamos agregar una micro-pausa (\texttt{\_mm\_pause}) cuando chocan, como recomiendan manuales clásicos, \textbf{¡y empeoró alrededor de $-30\,\%$!} En los procesadores Intel modernos esa pausa es demasiado larga ($\sim 140$ ciclos) y frena a los núcleos. Por eso la descartamos.
+\end{itemize}
+
+\section*{Mejora 2 (\texttt{Autores-v2}): «Pega la libreta a la tapa del libro»}
+\addcontentsline{toc}{section}{Mejora 2 (\texttt{Autores-v2}): «Pega la libreta a la tapa del libro»}
+\begin{itemize}
+  \item \textbf{Qué pasaba antes:} todos los rivales guardaban el libro y su libreta juntos en \textbf{una sola caja}. Solo el C++ de \texttt{Autores} guardaba el libro en un estante y la libreta en otro: el doble de viajes a la memoria RAM. Por eso en la réplica perdía cuando había \textbf{un millón de tablones} ($n = 10^6$).
+  \item \textbf{Qué pasó al arreglarlo:} al juntar libro y libreta en \textbf{1 sola caja} y encoger el boleto a la mitad (de 16 a 8 bytes):
+  \begin{itemize}
+    \item Con 1 bibliotecario en $n = 10^6$: \textbf{+81\,\% más rápido} ($3{,}13 \to 5{,}65$\,Mop/s).
+    \item Con 24 bibliotecarios en $n = 10^6$: saltó de $47{,}31 \to \mathbf{65{,}98}$\textbf{\,Mop/s (+39\,\%)}, \textbf{venciendo en +30\,\% a Anderson y Libstdc++ sin cambiar la memoria RAM} y usando \textbf{29\,\% menos memoria} ($1\,075\,\text{MB} \to 760\,\text{MB}$).
+  \end{itemize}
+  \item \textbf{Misterio extra resuelto:} antes los tiempos de lectura saltaban sin explicación entre $414$\,ns y $1\,450$\,ns. Descubrimos la causa: esta CPU mezcla \textbf{8 núcleos rápidos (P)} y \textbf{16 ahorradores (E)}; cuando Linux ponía al hilo medido en un núcleo~P tardaba \textbf{414\,ns}, y en un núcleo~E saltaba a \textbf{1\,408\,ns}. Al fijarlo en un núcleo~P, el ruido desapareció y \texttt{Autores-v2} ganó en lectura, escritura y borrado.
+\end{itemize}
+
+\section*{Mejora 3 (\texttt{Autores-v3}): «Mesas de intercambio rápido entre vecinos»}
+\addcontentsline{toc}{section}{Mejora 3 (\texttt{Autores-v3}): «Mesas de intercambio rápido entre vecinos»}
+\begin{itemize}
+  \item \textbf{Qué problema quedaba:} después de \texttt{v2}, el \textbf{único} lugar donde \texttt{Anderson} todavía ganaba era cuando los 24 bibliotecarios hacían fila en \textbf{un solo tablón} ($n = 1$), unos poniendo libros (\texttt{push}) y otros sacándolos (\texttt{pop}).
+  \item \textbf{El truco:} los 16 núcleos~E están sentados en \textbf{4 mesas de 4 vecinos} que se comunican rapidísimo (caché L2 compartida de $\sim 35$\,ns). Si un bibliotecario llega a dejar un libro y choca en el tablón central, se voltea a su mesa de 4 vecinos y se lo entrega directo en mano a otro vecino que venía a buscar uno, \textbf{sin tocar el tablón ni crear cajas nuevas}.
+  \item \textbf{Qué pasó al medirlo:}
+  \begin{itemize}
+    \item En el peor escenario ($n = 1, u = 50\,\%$, 24 hilos): saltó de $0{,}96 \to \mathbf{3{,}66}$\textbf{\,Mop/s} (\textbf{3{,}81$\times$ más rápido que el paper original} y \textbf{+80\,\% sobre Anderson} $2{,}03$).
+    \item Hacer mesas por grupo de vecinos (L2) fue \textbf{+65\,\% más rápido} que poner mesas al azar ($2{,}22$ vs. $3{,}66$), y logró que al sumar más núcleos ($12 \to 18 \to 24$) el rendimiento \textbf{suba} en vez de hundirse.
+    \item \textbf{Resultado global:} \textbf{\texttt{Autores-v3} supera al \texttt{Autores} original, a \texttt{Anderson} y a \texttt{Folly} en los 6 de 6 gráficos del paper} (con 1 y con 24 hilos), sin acumular basura.
+  \end{itemize}
+  \item \emph{Matiz honesto:} si le prestamos esas mismas mesas a Anderson (\texttt{Anderson-v3}), Anderson también mejora mucho en $n = 1$, pero sigue perdiendo contra \texttt{Autores-v3} en 4 de los 6 gráficos y sigue acumulando $\approx 29\,000$ libretas de basura.
+\end{itemize}
+
+\section*{Mejora 4 (\texttt{Autores-v4}): «Lectura silenciosa para que nadie muera esperando»}
+\addcontentsline{toc}{section}{Mejora 4 (\texttt{Autores-v4}): «Lectura silenciosa para que nadie muera esperando»}
+\begin{itemize}
+  \item \textbf{Qué problema teórico dejaba abierto el paper (\S 5.1):} aunque leer era sin espera, cambiar el tablón con \texttt{compare\_and\_set} podía quedarse \textbf{atascado para siempre} si 23 lectores no paraban de mover el contador del tablón, sobre todo si el escritor estaba en un \textbf{núcleo lento (E)} peleando contra \textbf{8 lectores en núcleos rápidos (P)}.
+  \item \textbf{El truco:} normalmente todo corre igual de rápido que \texttt{v2}. Pero si un escritor falla 4 veces seguidas por culpa de lectores, levanta una banderita; al verla, los lectores pasan a modo \textbf{«lectura silenciosa»} (anotan en su propia ficha en vez de tocar el tablón), dejando al escritor terminar al instante sin que nadie se bloquee.
+  \item \textbf{Qué pasó en la prueba extrema (23 lectores bombardeando vs. 1 escritor en núcleo lento E):}
+  \begin{itemize}
+    \item \textbf{\texttt{Folly}} casi se congela: \textbf{0{,}3 mil ops/s} (pausas de hasta \textbf{25 milisegundos}).
+    \item \textbf{\texttt{Autores-v2}} sufre: \textbf{44{,}4 mil ops/s} (picos \texttt{p99,95} de \textbf{549\,$\mu$s}).
+    \item \textbf{\texttt{Anderson}} logra \textbf{159{,}4 mil ops/s}, pero con pausas de \textbf{11{,}1 milisegundos} cuando vacía su bodega de basura.
+    \item \textbf{\texttt{Autores-v4}} aplasta el ataque: \textbf{210 mil ops/s (4{,}7$\times$ sobre \texttt{v2}, 700$\times$ sobre \texttt{Folly})}, baja las pausas \texttt{p99,95} \textbf{38 veces} ($549 \to 14{,}3\,\mu$s) y el peor pico \textbf{90 veces} frente a Anderson ($11{,}1\,\text{ms} \to 124\,\mu$s), con \textbf{0 basura diferida}.
+  \end{itemize}
+  \item \emph{Compromiso honesto:} con 1 hilo no cuesta nada extra, pero con 24 hilos leyendo casi todo el tiempo ($n = 10, u = 1\,\%$) pagar esa protección baja un poco el máximo ($137 \to 85$\,Mop/s), aunque sigue superando a Anderson ($71$) y Folly ($51$).
+\end{itemize}
+
+\caja{Resumen en 4 frases (para recordar en una exposición)}{%
+  \begin{enumerate}
+    \item \textbf{\texttt{v1} arregló el desperdicio} de 6 firmas atómicas por choque ($+44\,\%$ en pelea alta) y demostró que \texttt{\_mm\_pause} perjudica en Intel modernos.
+    \item \textbf{\texttt{v2} pegó la libreta al libro} ($+39\text{--}81\,\%$ con un millón de pilas, $-29\,\%$ de RAM) y explicó los saltos de latencia por los núcleos~P frente a los núcleos~E.
+    \item \textbf{\texttt{v3} aprovechó las mesas de 4 núcleos~E (caché L2)} para intercambiar \texttt{push} y \texttt{pop} localmente, logrando \textbf{ganar 6 de 6 escenarios} frente al paper original, Anderson y Folly ($3{,}81\times$ en el peor caso).
+    \item \textbf{\texttt{v4} cerró la última falla teórica del paper (\S 5.1)} impidiendo que 23 lectores dejen hambriento a un escritor lento ($4{,}7\times$ más velocidad y $38\times$ menos pausas extremas), siempre con \textbf{cero basura acumulada}.
+  \end{enumerate}
+}
+
+\newpage
+
+% ==============================================================================
+\part{Informe Técnico Completo de las 4 Versiones (\texttt{Autores-v1} a \texttt{Autores-v4})}
+% ==============================================================================
+
+\begin{abstract}
+\noindent
+Partiendo de nuestra réplica experimental del artículo de Euro-Par 2024~\cite{dewolff2024waitfree,dewolff2024artifact} sobre un procesador híbrido \textbf{Intel Core Ultra 9 285} (8 P-cores + 16 E-cores en 4 clústeres L2, 1 módulo DDR5-5600), presentamos la implementación, verificación formal con sanitizers y evaluación en ablación de \textbf{las cuatro mejoras incrementales} directas sobre \texttt{Autores} (\texttt{ivo::atomic\_shared\_ptr}): \textbf{\texttt{Autores-v1}} (higiene de \texttt{CAS} sin copias y pre-chequeo previo), \textbf{\texttt{Autores-v2}} (bloque de control \emph{in-place} de asignación única y \texttt{shared\_ptr} de 8 bytes), \textbf{\texttt{Autores-v3}} (\emph{Elimination-Backoff} linealizable de una palabra atómica particionado por clúster L2 y tipo de núcleo P/E) y \textbf{\texttt{Autores-v4}} (\texttt{compare\_and\_set} sin inanición mediante \emph{Fast-Path / Slow-Path} híbrido cerrando \S 5.1 del paper).
+
+Todas las variantes pasaron \textbf{ASan+UBSan}, \textbf{TSan} (0 \emph{data races}), recarga forzada ($P=32, C=64$) y \texttt{bench\_basura} (0 bloques diferidos frente a $25\,524\text{--}29\,094$ en Anderson). Sobre \textbf{885 ejecuciones de rendimiento}, \textbf{390 filas de latencia controlada (Fig.~6)}, \textbf{50 corridas adversariales} (23 lectores vs. 1 escritor \texttt{CAS}) y \textbf{84 filas de memoria retenida}: (1) \textbf{\texttt{Autores-v2}} rompe el techo de $n=10^6$ ($+81\,\%$ a 1\,h, $+39\,\%$ a 24\,h, $-29{,}3\,\%$ de RSS) y resuelve causalmente la bimodalidad de latencia como colocación P-core ($414$\,ns) frente a E-core ($1\,408$\,ns); (2) \textbf{\texttt{Autores-v3}} supera a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los \textbf{6 de 6 paneles de la Figura~5} a 1 y 24 hilos, logrando \textbf{3{,}66\,Mop/s ($3{,}81\times$ sobre el original, $+80\,\%$ sobre Anderson y $+65\,\%$ sobre eliminación ciega a topología)} en $n=1, u=50\,\%$ con escalado positivo de 12 a 24 hilos; y (3) bajo el ataque adversarial híbrido (escritor \texttt{CAS} en E-core contra 23 lectores incluyendo los 8 P-cores), \textbf{\texttt{Autores-v4}} alcanza \textbf{210{,}0\,Kops/s ($4{,}7\times$ sobre \texttt{v2} y $700\times$ sobre Folly)}, reduciendo \texttt{p99,95} en \textbf{$38\times$} ($549 \to 14{,}3\,\mu$s) y la latencia máxima en \textbf{$90\times$} frente a Anderson ($11{,}1\,$ms $\to 124\,\mu$s).
+\end{abstract}
+
+% ==============================================================================
+\section{Escalera de Cuatro Propuestas sobre la Réplica de Euro-Par 2024}
+% ==============================================================================
+
+\begin{table}[H]
+\centering
+\caption{Escalera de mejoras directas sobre \texttt{Autores}, su sustento bibliográfico verificado y estado actual.}
+\label{tab:escalera}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{4.3cm} l@{}}
+\toprule
+\textbf{Peldaño} & \textbf{Mecanismo técnico} & \textbf{Respaldo bibliográfico} & \textbf{Estado} \\
+\midrule
+\textbf{1. \texttt{Autores-v1}} & Paso por referencia en \texttt{CAS}, pre-chequeo previo a incrementar \texttt{new\_cb}, \texttt{relaxed} local y ablación de \texttt{\_mm\_pause()}. & Mellor-Crummey \& Scott~\cite{mellorcrummey1991mcs}, de Wolff et al.~\cite{dewolff2024waitfree}, Anderson et al.~\cite{anderson2022turning} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{2. \texttt{Autores-v2}} & Bloque de control \emph{in-place} sin \emph{vtable} (1 asignación), \texttt{shared\_ptr} de 8\,B y \texttt{load()} sin indirección extra. & de Wolff et al. \S 2.1~\cite{dewolff2024waitfree}, Dimov \& Dawes N2351~\cite{dimov2007n2351}, Anderson et al.~\cite{anderson2022turning}, Mytkowicz et al.~\cite{mytkowicz2009wrongdata} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{3. \texttt{Autores-v3}} & \emph{Elimination-Backoff} de 1 palabra atómica particionado por clúster L2 + ventanas P/E-core y asignación perezosa. & Hendler et al.~\cite{hendler2004elimination}, Liu et al. LibASL~\cite{liu2022libasl}, Ouyang \& Zhu~\cite{ouyang2022coreaware}, Schöne et al.~\cite{schone2024alderlake} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\textbf{4. \texttt{Autores-v4}} & \texttt{compare\_and\_set} sin inanición mediante \emph{Fast-Path / Slow-Path} híbrido (ranuras locales + \texttt{rc\_try\_increment}, cierra \S 5.1). & de Wolff et al. \S 5.1~\cite{dewolff2024waitfree}, Kogan \& Petrank~\cite{kogan2012methodology}, Timnat \& Petrank~\cite{timnat2014simulation}, Nikolaev \& Ravindran~\cite{nikolaev2024crystalline} & \textcolor{ok}{\textbf{Hecha y medida}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ==============================================================================
+\section{Ablación de \texttt{Autores-v1} y \texttt{Autores-v2}: Limpieza de \texttt{CAS}, Layout \emph{In-Place} y Latencia P/E}
+% ==============================================================================
+
+\texttt{Autores-v1} (\texttt{mejoras/atomic\_shared\_ptr\_v1.h}) elimina las 6 RMW atómicas desperdiciadas por intento fallido de \texttt{compare\_exchange\_weak} en el C++ oficial (paso por valor de \texttt{expected} y \texttt{new\_ptr}, e incremento prematuro de \texttt{new\_cb}) e introduce \texttt{rc\_increment\_relaxed} cuando el hilo ya posee una referencia viva. \texttt{Autores-v2} (\texttt{mejoras/atomic\_shared\_ptr\_v2.h}) añade un bloque de control \emph{in-place} sin \emph{vtable} (asignación única de 32\,B para cada nodo de la pila, análogo al \texttt{Arc<T>} de Rust), compacta \texttt{shared\_ptr<T>} a 8\,B y elimina la desreferencia extra en \texttt{load()}.
+
+\begin{table}[H]
+\centering
+\caption{Ablación \texttt{v1}/\texttt{v2} en los 6 paneles de la Figura 5 a 24 hilos (mediana 3 rondas $\times$ 2\,s, Mop/s) y efecto negativo de \texttt{\_mm\_pause()} (\texttt{v1p}, \texttt{v2p}).}
+\label{tab:v1v2_24h}
+\footnotesize
+\begin{tabular}{@{}l r r r r r r r@{}}
+\toprule
+\textbf{Panel} & \textbf{Autores} & \textbf{v1} & \textbf{v1p} & \textbf{v2} & \textbf{v2p} & \textbf{Anderson} & \textbf{Folly} \\
+\midrule
+$n=1, u=1\,\%$ & 19{,}72 & 17{,}42 & 14{,}89 & \textbf{19{,}52} (0{,}99$\times$) & 14{,}18 & 18{,}46 & 8{,}86 \\
+$n=1, u=10\,\%$ & 4{,}63 & 6{,}13 & 4{,}67 & \textbf{6{,}55} (1{,}41$\times$) & 4{,}86 & 8{,}79 & 5{,}03 \\
+$n=1, u=50\,\%$ & 1{,}03 & 1{,}48 & 0{,}94 & \textbf{1{,}63} (1{,}58$\times$) & 1{,}10 & 2{,}06 & 1{,}46 \\
+$n=10, u=1\,\%$ & 128{,}61 & 131{,}30 & 128{,}76 & \textbf{136{,}25} (1{,}06$\times$) & 131{,}73 & 73{,}45 & 50{,}04 \\
+$n=10, u=10\,\%$ & 55{,}51 & 53{,}51 & 45{,}08 & \textbf{56{,}28} (1{,}01$\times$) & 43{,}61 & 62{,}55 & 36{,}40 \\
+$n=10^6, u=50\,\%$ & 47{,}31 & 49{,}30 & 49{,}31 & \textbf{65{,}98} (1{,}39$\times$) & 64{,}72 & 50{,}62 & 47{,}24 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{escalado_n1M_y_n1u50.png}
+  \caption{Ablación \texttt{v1}/\texttt{v2}: en $n=10^6, u=50\,\%$ (izq.), \texttt{Autores-v2} rompe el techo de $\approx 50$\,Mop/s sin cambiar la RAM DDR5 ($+81\,\%$ a 1\,h, $+39\,\%$ a 24\,h, $-29{,}3\,\%$ de RSS: $1\,075 \to 760$\,MB). En $n=1, u=50\,\%$ (der.), \texttt{v2} gana $+58\,\%$ pero \texttt{\_mm\_pause()} degrada $-33\,\%$.}
+  \label{fig:v1v2_esc}
+\end{figure}
+
+En latencia controlada con afinidad fija (Cuadro~\ref{tab:latencia}), fijar el hilo cronometrado en un P-core (\texttt{todos24-P}) colapsa la dispersión de 5 rondas de $5{,}75\times$ a \textbf{$1{,}04\times$} ($405\text{--}421$\,ns), demostrando causalmente que la bimodalidad de la réplica procedía de la alternancia P-core ($414$\,ns) vs. E-core ($1\,408$\,ns)~\cite{schone2024alderlake}. Además, \texttt{Autores-v2} mantiene \texttt{p99,95} de \textbf{32\,ns} en \texttt{store-del} ($p=1$) frente a \textbf{7\,770\,ns} de Anderson~\cite{kim2024epochs}, y \textbf{53 bloques} pico en \texttt{bench\_basura} a 24\,h frente a \textbf{29\,094} de Anderson.
+
+\begin{table}[H]
+\centering
+\caption{Latencia controlada (ns): \texttt{p50 / p99 / p99,95} según colocación del hilo medido.}
+\label{tab:latencia}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l l c c c c c@{}}
+\toprule
+\textbf{Op.} & \textbf{Corte} & \textbf{Autores} & \textbf{Autores-v1} & \textbf{Autores-v2} & \textbf{Anderson} & \textbf{Folly} \\
+\midrule
+\texttt{load} & $p=1$ (P-fijo) & 14 / 15 / 16 & 14 / 15 / 18 & \textbf{14 / 15 / 21} & 18 / 19 / 21 & 15 / 17 / 24 \\
+\texttt{load} & $p=24$ (todos24-P) & 425 / 887 / 1\,510 & 414 / 945 / 1\,533 & \textbf{414 / 955 / 1\,564} & 490 / 946 / 1\,704 & 485 / 2\,155 / 4\,082 \\
+\texttt{load} & $p=24$ (todos24-E) & 1\,330 / 2\,478 / 3\,692 & 699 / 1\,819 / 2\,725 & 1\,408 / 2\,588 / 4\,173 & 1\,512 / 3\,914 / 3\,003\,557 & 2\,986 / 72\,795 / 3\,067\,716 \\
+\texttt{store} & $p=24$ (todos24-P) & 522 / 1\,363 / 1\,819 & 482 / 1\,113 / 1\,678 & \textbf{484 / 1\,236 / 1\,768} & 498 / 1\,278 / 1\,829 & 802 / 1\,548 / 2\,614 \\
+\texttt{store-del} & $p=1$ (P-fijo) & 27 / 29 / 32 & 28 / 30 / 33 & \textbf{28 / 30 / 32} & 29 / 32 / \textcolor{mal}{\textbf{7\,770}} & 24 / 28 / 36 \\
+\texttt{store-del} & $p=24$ (todos24-P) & 425 / 813 / 1\,109 & 416 / 792 / 1\,063 & \textbf{417 / 794 / 1\,145} & 429 / 820 / 1\,118 & 1\,432 / 2\,406 / 3\,894 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+% ==============================================================================
+\section{\texttt{Autores-v3}: \emph{Elimination-Backoff} Consciente de Clústeres L2 y P/E-Cores}
+% ==============================================================================
+
+\subsection{Diseño modular y controles de ablación}
+Tras \texttt{Autores-v2}, la única brecha frente a Anderson quedaba en contención extrema sobre una sola pila ($n=1, u=10\,\% / 50\,\%$). Construimos \texttt{Autores-v3} sobre \texttt{v2} en tres componentes medidos por separado:
+\begin{itemize}
+  \item \textbf{\texttt{pe\_topology.h}:} lee \texttt{/sys/devices/system/cpu/cpu*/cache/index2/shared\_cpu\_list} una sola vez para mapear los 8 P-cores (L2 privada, 2 dominios de 4) y los 16 E-cores (4 clústeres L2 de 4 núcleos, 4 dominios locales).
+  \item \textbf{\texttt{elimination\_table\_v3.h}:} intercambiador \emph{lock-free} de \textbf{una sola palabra atómica de 64 bits} por ranura (\texttt{alignas(128)}), empaquetando valor (32\,b) + versión monotónica (30\,b, sin ABA) + estado de 4 valores (\texttt{EMPTY}, \texttt{PUSH\_WAIT}, \texttt{POP\_WAIT}, \texttt{POP\_GOT}). La tabla se asigna de forma perezosa solo cuando un hilo acumula fallos consecutivos de \texttt{CAS} (usando el relleno libre de \texttt{alignas(128)} de \texttt{atomic\_stack}), garantizando \textbf{0 bytes extra en $n=10^6$}.
+  \item \textbf{Tres variantes + control justo:} \texttt{Autores-v3a} (solo \emph{backoff} ligero P/E en \texttt{CAS}), \texttt{Autores-v3g} (eliminación aleatoria ciega a topología~\cite{hendler2004elimination}), \textbf{\texttt{Autores-v3}} (eliminación particionada por clúster L2 con ventana diferenciada P/E~\cite{liu2022libasl,ouyang2022coreaware}), y \texttt{Anderson-v3} (Anderson + nuestra misma capa L2 como control experimental transparente).
+\end{itemize}
+
+\textbf{Validación:} \texttt{mejoras/test\_correctitud\_v3.cpp} pasó \textbf{ASan+UBSan} y \textbf{TSan (\texttt{setarch -R})} con \textbf{0 errores, 0 fugas y 0 \emph{data races}}, verificando conservación exacta 1:1 de conteo y suma en presencia de lectores concurrentes.
+
+\subsection{Resultados de ablación completa (360 ejecuciones $\times$ 2\,s, 0 fallos)}
+
+El Cuadro~\ref{tab:v3_24h} y las Figuras~\ref{fig:v3_fig5} y~\ref{fig:v3_esc} recogen los resultados de \texttt{correr\_v3.py} (\texttt{jemalloc}, \texttt{numactl -i all}, orden aleatorizado por ronda~\cite{hoefler2015benchmarking}).
+
+\begin{table}[H]
+\centering
+\caption{Ablación completa de \texttt{Autores-v3} en los 6 paneles de la Figura 5 a \textbf{24 hilos} (mediana de 3 rondas $\times$ 2\,s, Mop/s). Entre paréntesis, factor respecto a \texttt{Autores} original.}
+\label{tab:v3_24h}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l r r r r r r r r@{}}
+\toprule
+\textbf{Panel} & \textbf{Autores} & \textbf{v2} & \textbf{v3a (backoff)} & \textbf{v3g (gen.)} & \textbf{Autores-v3 (L2+P/E)} & \textbf{Anderson} & \textbf{And-v3 (ctrl)} & \textbf{Folly} \\
+\midrule
+$n=1, u=1\,\%$ & 19{,}70 & 18{,}48 & 18{,}23 & 19{,}03 & \textbf{19{,}80} (1{,}01$\times$) & 17{,}78 & 18{,}10 & 8{,}73 \\
+$n=1, u=10\,\%$ & 4{,}16 & 6{,}40 & 6{,}68 & 7{,}42 & \textbf{9{,}55} (2{,}30$\times$) & 8{,}78 & 12{,}57 & 4{,}91 \\
+$n=1, u=50\,\%$ & 0{,}96 & 1{,}72 & 1{,}61 & 2{,}22 & \textbf{3{,}66} (3{,}81$\times$) & 2{,}03 & 5{,}09 & 1{,}52 \\
+$n=10, u=1\,\%$ & 130{,}03 & 138{,}99 & 137{,}07 & 138{,}32 & \textbf{137{,}17} (1{,}05$\times$) & 67{,}59 & 72{,}12 & 51{,}13 \\
+$n=10, u=10\,\%$ & 51{,}39 & 55{,}54 & 56{,}37 & 70{,}57 & \textbf{73{,}83} (1{,}44$\times$) & 60{,}81 & 59{,}70 & 37{,}47 \\
+$n=10^6, u=50\,\%$ & 48{,}21 & 65{,}15 & 66{,}36 & 62{,}77 & \textbf{64{,}09} (1{,}33$\times$) & 53{,}92 & 52{,}79 & 47{,}24 \\
+\midrule
+\textbf{RSS ($n=10^6$)} & 1\,075\,MB & 760\,MB & 760\,MB & 763\,MB & \textbf{763\,MB} & 911\,MB & 915\,MB & 1\,056\,MB \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{ablacion_v3_fig5_24h.png}
+  \caption{Ablación de \texttt{Autores-v3} en los 6 paneles de la Figura 5 a 24 hilos: \texttt{Autores-v3} supera a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los 6 paneles.}
+  \label{fig:v3_fig5}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{escalado_v3_contencion.png}
+  \caption{Escalado de 6 a 24 hilos en contención extrema ($n=1, u=50\,\%$ y $u=10\,\%$): \texttt{Autores-v3} invierte la tendencia y escala positivamente al activarse más clústeres E-core (12 $\to$ 18 $\to$ 24 hilos), sacando $+65\,\%$ sobre la eliminación genérica \texttt{v3g}.}
+  \label{fig:v3_esc}
+\end{figure}
+
+\textbf{Conclusiones clave de \texttt{Autores-v3}:}
+\begin{enumerate}
+  \item \textbf{Liderazgo 6 de 6 sobre las implementaciones oficiales:} \texttt{Autores-v3} vence a \texttt{Autores}, \texttt{Anderson} y \texttt{Folly} en los 6 paneles tanto a 1 hilo (sin regresión respecto a \texttt{v2}) como a 24 hilos, con RSS de \textbf{763\,MB} en $n=10^6$ ($-29\,\%$ frente al original).
+  \item \textbf{Impacto causal de la topología L2+P/E:} el \emph{backoff} puro en \texttt{CAS} (\texttt{v3a}) es neutro ($1{,}61$ vs. $1{,}72$\,Mop/s); la eliminación clásica ciega (\texttt{v3g}) sube a $2{,}22$\,Mop/s; y el particionado por clúster L2 + P/E (\texttt{v3}) añade otro \textbf{$+65\,\%$} ($3{,}66$\,Mop/s), logrando escalado positivo de 12 a 24 hilos ($2{,}63 \to 3{,}08 \to 3{,}66$).
+  \item \textbf{Lectura honesta del control \texttt{Anderson-v3}:} la capa L2 también acelera a Anderson en $n=1, u=10/50\,\%$ ($12{,}57$ y $5{,}09$\,Mop/s) porque sus lecturas \texttt{front()} usan \emph{snapshots} sin modificar \texttt{head}; sin embargo, \texttt{Autores-v3} supera incluso a \texttt{Anderson-v3} en los otros 4 paneles ($n=1\,u=1\,\%$, $n=10\,u=1/10\,\%$, $n=10^6$) y mantiene liberación inmediata (0 bloques diferidos).
+\end{enumerate}
+
+% ==============================================================================
+\section{\texttt{Autores-v4}: \texttt{compare\_and\_set} Sin Inanición (\emph{Fast-Path / Slow-Path})}
+% ==============================================================================
+
+\subsection{Diseño híbrido y solución del problema de reentrancia en destrucción recursiva}
+Para cerrar la limitación teórica del \S 5.1~\cite{dewolff2024waitfree} sin añadir sobrecosto en el caso común, \texttt{Autores-v4} (\texttt{mejoras/atomic\_shared\_ptr\_v4.h}) combina el conteo ponderado \emph{wait-free} de \texttt{Autores-v2} en el camino rápido con protección por ranura local de lectura (\emph{hazard slot}) en el camino lento~\cite{kogan2012methodology,timnat2014simulation,nikolaev2024crystalline}:
+\begin{enumerate}
+  \item \textbf{Camino rápido (\texttt{slow\_writers == 0}):} \texttt{load()} ejecuta exactamente un \texttt{fetch\_add(pack\_tag(1))}, \texttt{store()} un \texttt{exchange()}, y \texttt{reclaim\_or\_retire()} libera la memoria en el acto tras verificar \texttt{active\_hp\_readers == 0} (0 bloques diferidos en \texttt{bench\_basura}).
+  \item \textbf{Camino lento (\texttt{retries} $\ge K=4$ por cambios de \texttt{tag}):} el escritor incrementa \texttt{slow\_writers} (en la misma línea de caché de \texttt{tagged\_pointer}). Los lectores desvían a \texttt{load\_slow\_path()}, protegiendo el puntero observado en su ranura privada \texttt{hp[tid]} y ejecutando \texttt{rc\_try\_increment\_one()} (solo si \texttt{rc > 0}, evitando resurrección), \textbf{sin emitir escrituras sobre \texttt{tagged\_pointer}}. Así \texttt{tag} queda estacionario (a lo sumo $P-1$ lectores en vuelo), el \texttt{CAS} termina en $O(P)$ pasos y ningún lector bloquea si el escritor es expulsado.
+  \item \textbf{Seguridad ante reentrancia recursiva:} durante la validación en 24 hilos sobre pilas enlazadas descubrimos y corregimos un fallo sutil de reentrancia en \texttt{drain\_local()}: destruir \texttt{Node} invoca \texttt{\~{}shared\_ptr(next)}, re-entrando en \texttt{reclaim\_or\_retire()}. Intercambiar el vector local a un lote temporal con guarda \texttt{draining} eliminó por completo el fallo, pasando \textbf{ASan+UBSan} y \textbf{TSan (\texttt{setarch -R})} con 0 errores, 0 fugas y 0 \emph{data races} sobre pila de Treiber recursiva a 16 hilos y estrés adversarial.
+\end{enumerate}
+
+\subsection{Ataque adversarial \S 5.1 (23 lectores continuos vs. 1 escritor \texttt{CAS})}
+
+Evaluamos \texttt{bench\_adversarial\_v4} durante 5 rondas $\times$ 2\,s en dos cortes de afinidad controlada: escritor fijado en P-core (\texttt{cpu2}) y el \textbf{ataque híbrido extremo de Arrow Lake} con el escritor fijado en E-core (\texttt{cpu8}) frente a 23 lectores incluyendo los 8 P-cores rápidos (Cuadro~\ref{tab:adv_v4} y Figura~\ref{fig:adv_v4}).
+
+\begin{table}[H]
+\centering
+\caption{Ataque adversarial \S 5.1 (23 lectores continuos vs. 1 escritor \texttt{CAS}, mediana de 5 rondas $\times$ 2\,s).}
+\label{tab:adv_v4}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l l r r r r r r@{}}
+\toprule
+\textbf{Corte} & \textbf{Algoritmo} & \textbf{p50 (ns)} & \textbf{p99 (ns)} & \textbf{p99,95 (ns)} & \textbf{Máx (ns)} & \textbf{Escritor (Kops/s)} & \textbf{Lectores (Mop/s)} \\
+\midrule
+\multirow{5}{*}{Escritor P-core} & Autores & 1\,165 & 3\,049 & 4\,153 & 507\,201 & 779{,}2 & 20{,}87 \\
+ & Autores-v2 & 1\,335 & 2\,577 & 3\,880 & 140\,067 & 717{,}4 & 23{,}78 \\
+ & \textbf{Autores-v4} & \textbf{1\,068} & \textbf{2\,079} & \textbf{3\,043} & 684\,632 & \textbf{908{,}2} & 17{,}19 \\
+ & Anderson & 1\,156 & 2\,974 & 4\,305 & 11\,195\,337 & 788{,}1 & 21{,}10 \\
+ & Folly & 3\,887 & 54\,489 & 957\,962 & 1\,597\,956 & 119{,}8 & 9{,}86 \\
+\midrule
+\multirow{5}{*}{\textbf{Escritor E-core}} & Autores & 7\,366 & 87\,788 & 259\,481 & 746\,501 & 98{,}7 & 22{,}76 \\
+ & Autores-v2 & 14\,414 & 138\,776 & 549\,332 & 745\,706 & 44{,}4 & 23{,}74 \\
+ & \textbf{Autores-v4} & \textbf{5\,182} & \textbf{10\,748} & \textbf{14\,305} & \textbf{124\,060} & \textbf{210{,}0} & 15{,}54 \\
+ & Anderson & 5\,136 & 17\,966 & 23\,857 & 11\,116\,882 & 159{,}4 & 16{,}58 \\
+ & Folly & 2\,476\,727 & 15\,559\,044 & 18\,707\,672 & 25\,110\,782 & 0{,}3 & 10{,}76 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{adversarial_v4_latencia.png}
+  \caption{Latencia del escritor \texttt{CAS} (escala logarítmica, $\mu$s) bajo bombardeo continuo de 23 lectores: en el ataque híbrido con escritor en E-core (der.), \texttt{Autores-v4} reduce \texttt{p99,95} en $38\times$ frente a \texttt{v2} y la latencia máxima en $90\times$ frente a Anderson, multiplicando por $4{,}7\times$ el rendimiento del escritor.}
+  \label{fig:adv_v4}
+\end{figure}
+
+\subsection{Sobrecosto en camino rápido y memoria retenida (\texttt{bench\_basura})}
+
+En los 6 paneles de la Figura~5 a \textbf{1 hilo}, \texttt{Autores-v4} presenta \textbf{0\,\% de sobrecosto} frente a \texttt{Autores-v2} ($1{,}00\times\text{--}1{,}03\times$: $101{,}04$ vs. $99{,}12$ en $n=1, u=1\,\%$; $28{,}31$ vs. $28{,}34$ en $n=1, u=50\,\%$; $5{,}84$ vs. $5{,}68$ en $n=10^6$). A \textbf{24 hilos}, mantiene un sobrecosto acotado en $n=1, u=50\,\%$ ($1{,}49$ vs. $1{,}61$, $0{,}93\times$) y $n=10^6$ ($63{,}71$ vs. $69{,}44$, $0{,}92\times$, aún $+29\,\%$ sobre \texttt{Autores} original y $+9\,\%$ sobre Anderson), mientras en cargas muy dominadas por lecturas concurrentes ($n=10, u=1\,\%$: $85{,}21$ vs. $136{,}72$, $0{,}62\times$, aún por encima de Anderson $71{,}32$ y Folly $50{,}55$) el umbral $K=4$ activa el contador global \texttt{active\_hp\_readers}, ilustrando con transparencia el compromiso clásico entre progreso \emph{lock-free} y protección contra inanición. En \texttt{bench\_basura}, \texttt{Autores-v4} conserva \textbf{0 bloques diferidos} (pico de \textbf{21} bloques a 8\,h y \textbf{55} a 24\,h frente a \textbf{25\,524} de Anderson). En la prueba oficial de latencia \textbf{Figura~6} (\texttt{bench\_atomic\_shared\_ptrs}, 195 filas), \texttt{Autores-v4} confirma \textbf{0\,\% de sobrecosto} en \texttt{load}/\texttt{store}/\texttt{store-del}: iguala los \textbf{14\,ns} en \texttt{load} a $p=1$ (\texttt{p99,95} de \textbf{32\,ns} en \texttt{store-del} frente a \textbf{7\,731\,ns} de Anderson) y lidera en $p=24$ (\texttt{todos24-P}) tanto \texttt{load} (\textbf{410\,ns} vs. 417 original / 487 Anderson) como \texttt{store-del} (\textbf{411\,ns} vs. 425 / 432).
+
+% ==============================================================================
+\section{Síntesis Final de las Cuatro Mejoras}
+% ==============================================================================
+
+\begin{table}[H]
+\centering
+\caption{Comparativa integrada de la evolución \texttt{Autores} $\to$ \texttt{v1} $\to$ \texttt{v2} $\to$ \texttt{v3} $\to$ \texttt{v4} en Intel Core Ultra 9 285.}
+\label{tab:sintesis_final}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l c c c c c@{}}
+\toprule
+\textbf{Métrica clave (24 hilos)} & \textbf{Autores (orig.)} & \textbf{Autores-v1} & \textbf{Autores-v2} & \textbf{Autores-v3} & \textbf{Autores-v4} \\
+\midrule
+$n=1, u=50\,\%$ (Mop/s) & 0{,}96--1{,}03 & 1{,}48 & 1{,}63--1{,}72 & \textbf{3{,}66 ($3{,}81\times$)} & 1{,}49 \\
+$n=10, u=10\,\%$ (Mop/s) & 51{,}39--55{,}51 & 53{,}51 & 55{,}54--56{,}28 & \textbf{73{,}83 ($1{,}44\times$)} & 47{,}98 \\
+$n=10^6, u=50\,\%$ (Mop/s) & 47{,}31--48{,}21 & 49{,}30 & \textbf{65{,}98 ($1{,}39\times$)} & 64{,}09 & 63{,}71 \\
+Pico RSS en $n=10^6$ (MB) & 1\,075 & 1\,075 & \textbf{760 ($-29{,}3\,\%$)} & 763 & 760 \\
+Ataque E-core 23L+1E (\texttt{p99,95} / Kops/s) & 259\,$\mu$s / 98{,}7 & — & 549\,$\mu$s / 44{,}4 & — & \textbf{14{,}3\,$\mu$s / 210{,}0} \\
+Memoria retenida (\texttt{bench\_basura}, 24\,h) & 54 (0 dif.) & 52 (0 dif.) & 53 (0 dif.) & 53 (0 dif.) & 55 (0 dif.) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Cada peldaño resuelve un cuello de botella distinto y medible de la réplica de Euro-Par 2024: \texttt{v1+v2} corrigen la implementación C++ oficial hasta dominar $n=10^6$ y la latencia P-core; \texttt{v3} convierte la topología híbrida L2+P/E de Arrow Lake en ventaja competitiva alcanzando liderazgo \textbf{6 de 6} frente a los algoritmos originales; y \texttt{v4} cierra la vulnerabilidad de inanición del \S 5.1 bajo ataques adversariales de lectores rápidos contra escritores en núcleos lentos.
+
+\bibliographystyle{plain}
+\bibliography{referencias_mejoras}
+
+\end{document}
