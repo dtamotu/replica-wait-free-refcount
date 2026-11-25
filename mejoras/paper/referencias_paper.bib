@@ -1,0 +1,310 @@
+% =============================================================================
+% Bibliografía completa y verificada del paper:
+% Réplica y Extensión Wait-Free Reference Counting en Arquitectura Híbrida (2026)
+% =============================================================================
+
+% --- Artículo base, artefacto Zenodo y nuestra réplica ---
+
+@inproceedings{dewolff2024waitfree,
+  author    = {de Wolff, Ivo Gabe and Anderson, Daniel and Keller, Gabriele K. and Seletskiy, Aleksei},
+  title     = {A Fast Wait-Free Solution to Read-Reclaim Races in Reference Counting},
+  booktitle = {Euro-Par 2024: Parallel Processing -- 30th European Conference on Parallel and Distributed Processing},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {14803},
+  pages     = {103--118},
+  publisher = {Springer},
+  year      = {2024},
+  doi       = {10.1007/978-3-031-69583-4_8}
+}
+
+@misc{dewolff2024artifact,
+  author    = {de Wolff, Ivo Gabe and Anderson, Daniel and Keller, Gabriele K. and Seletskiy, Aleksei},
+  title     = {Artifact of the Paper: A Fast Wait-Free Solution to Read-Reclaim Races in Reference Counting},
+  year      = {2024},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.11775182},
+  note      = {MD5 verificado: e7e03425dfd426385a769788e5460fcd}
+}
+
+@misc{replica2026ultra9,
+  author       = {Tamo Turpo, David and Alvarez Astete, Jheremy Manuel and Quispe Candelario, Diego},
+  title        = {Reproducción y Réplica Experimental de \emph{A Fast Wait-Free Solution to Read-Reclaim Races in Reference Counting} en Intel Core Ultra 9 285 e Intel Core i5-10400},
+  year         = {2026},
+  howpublished = {Repositorio GitHub (rama \texttt{main}, commit \texttt{17f1e45}): \url{https://github.com/davichiacustico-ux/replica-wait-free-refcount}},
+  note         = {14\,158 mediciones experimentales e informe técnico \texttt{informe\_replica\_ultra9.pdf}}
+}
+
+@misc{mejoras2026autores,
+  author       = {Tamo Turpo, David and Alvarez Astete, Jheremy Manuel and Quispe Candelario, Diego},
+  title        = {Extensión Experimental \texttt{Autores-v1} a \texttt{Autores-v4} sobre Conteo de Referencias \emph{Wait-Free} en Arquitectura Híbrida},
+  year         = {2026},
+  howpublished = {Repositorio GitHub (rama \texttt{mejoras-autores}, commit \texttt{71f63fa}): \url{https://github.com/dtamotu/replica-wait-free-refcount/tree/mejoras-autores}}
+}
+
+% --- Fundamentos de conteo de referencias y algoritmos rivales ---
+
+@article{collins1960refcount,
+  author  = {Collins, George E.},
+  title   = {A Method for Overlapping and Erasure of Lists},
+  journal = {Communications of the ACM},
+  volume  = {3},
+  number  = {12},
+  pages   = {655--657},
+  year    = {1960}
+}
+
+@article{herlihy1991waitfree,
+  author  = {Herlihy, Maurice},
+  title   = {Wait-Free Synchronization},
+  journal = {ACM Transactions on Programming Languages and Systems (TOPLAS)},
+  volume  = {13},
+  number  = {1},
+  pages   = {124--149},
+  year    = {1991}
+}
+
+@inproceedings{bevan1987weighted,
+  author    = {Bevan, D. I.},
+  title     = {Distributed Garbage Collection Using Reference Counting},
+  booktitle = {PARLE Parallel Architectures and Languages Europe},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {259},
+  pages     = {176--187},
+  publisher = {Springer},
+  year      = {1987},
+  doi       = {10.1007/3-540-17945-3_10}
+}
+
+@inproceedings{watson1987weighted,
+  author    = {Watson, Paul and Watson, Ian},
+  title     = {An Efficient Garbage Collection Scheme for Parallel Computer Architectures},
+  booktitle = {PARLE 1987: Parallel Architectures and Languages Europe},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {259},
+  pages     = {432--443},
+  publisher = {Springer},
+  year      = {1987},
+  doi       = {10.1007/3-540-17945-3_25}
+}
+
+@inproceedings{detlefs2001lockfree,
+  author    = {Detlefs, David L. and Martin, Paul A. and Moir, Mark and Steele Jr., Guy L.},
+  title     = {Lock-Free Reference Counting},
+  booktitle = {Proceedings of the ACM Symposium on Principles of Distributed Computing (PODC)},
+  year      = {2001}
+}
+
+@article{michael2004hazard,
+  author  = {Michael, Maged M.},
+  title   = {Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects},
+  journal = {IEEE Transactions on Parallel and Distributed Systems (TPDS)},
+  volume  = {15},
+  number  = {6},
+  pages   = {491--504},
+  year    = {2004}
+}
+
+@inproceedings{sundell2005waitfree,
+  author    = {Sundell, H{\aa}kan},
+  title     = {Wait-Free Reference Counting and Memory Management},
+  booktitle = {Proceedings of the International Parallel and Distributed Processing Symposium (IPDPS)},
+  year      = {2005}
+}
+
+@inproceedings{lee2010fast,
+  author    = {Lee, Hyon},
+  title     = {Fast Local-Spin Abortable Mutual Exclusion with Bounded Space},
+  booktitle = {OPODIS 2010: Principles of Distributed Systems},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {6490},
+  pages     = {364--379},
+  publisher = {Springer},
+  year      = {2010},
+  doi       = {10.1007/978-3-642-17653-1_27}
+}
+
+@book{williams2012concurrency,
+  author    = {Williams, Anthony},
+  title     = {C++ Concurrency in Action: Practical Multithreading},
+  publisher = {Manning Publications},
+  year      = {2012}
+}
+
+@techreport{sutter2014atomic,
+  author      = {Sutter, Herb},
+  title       = {Atomic Smart Pointers},
+  institution = {ISO/IEC JTC1/SC22/WG21},
+  number      = {N4058},
+  year        = {2014}
+}
+
+@misc{folly2024,
+  author       = {{Facebook / Meta}},
+  title        = {Folly: Facebook Open-Source Library (\texttt{folly::atomic\_shared\_ptr})},
+  year         = {2024},
+  howpublished = {\url{https://github.com/facebook/folly}},
+  note         = {Commit fijado en Euro-Par 2024: 8a9b2220}
+}
+
+@inproceedings{anderson2021cdrc,
+  author    = {Anderson, Daniel and Blelloch, Guy E. and Wei, Yuanhao},
+  title     = {Concurrent Deferred Reference Counting with Constant-Time Overhead},
+  booktitle = {Proceedings of the ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)},
+  year      = {2021},
+  doi       = {10.1145/3453483.3454060}
+}
+
+@inproceedings{anderson2022turning,
+  author    = {Anderson, Daniel and Blelloch, Guy E. and Wei, Yuanhao},
+  title     = {Turning Manual Concurrent Memory Reclamation into Automatic Reference Counting},
+  booktitle = {Proceedings of the ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)},
+  year      = {2022},
+  doi       = {10.1145/3519939.3523730}
+}
+
+% --- Inspiración directa para las 4 propuestas (v1..v4) y arquitectura híbrida ---
+
+@article{mellorcrummey1991mcs,
+  author  = {Mellor-Crummey, John M. and Scott, Michael L.},
+  title   = {Algorithms for Scalable Synchronization on Shared-Memory Multiprocessors},
+  journal = {ACM Transactions on Computer Systems (TOCS)},
+  volume  = {9},
+  number  = {1},
+  pages   = {21--65},
+  year    = {1991},
+  doi     = {10.1145/103727.103729}
+}
+
+@techreport{dimov2007n2351,
+  author      = {Dimov, Peter and Dawes, Beman},
+  title       = {Improving \texttt{shared\_ptr} for C++0x, Revision 2},
+  institution = {ISO/IEC JTC1/SC22/WG21},
+  number      = {N2351},
+  year        = {2007},
+  url         = {https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2351.htm}
+}
+
+@inproceedings{mytkowicz2009wrongdata,
+  author    = {Mytkowicz, Todd and Diwan, Amer and Hauswirth, Matthias and Sweeney, Peter F.},
+  title     = {Producing Wrong Data Without Doing Anything Obviously Wrong!},
+  booktitle = {Proceedings of the International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  year      = {2009},
+  doi       = {10.1145/1508244.1508275}
+}
+
+@inproceedings{hoefler2015benchmarking,
+  author    = {Hoefler, Torsten and Belli, Roberto},
+  title     = {Scientific Benchmarking of Parallel Computing Systems: Twelve Ways to Tell the Masses When Reporting Performance Results},
+  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC '15)},
+  year      = {2015},
+  doi       = {10.1145/2807591.2807644}
+}
+
+@inproceedings{schone2024alderlake,
+  author    = {Sch{\"o}ne, Robert and Velten, Markus and Hackenberg, Daniel and Ilsche, Thomas},
+  title     = {Energy Efficiency Features of the Intel Alder Lake Architecture},
+  booktitle = {Proceedings of the ACM/SPEC International Conference on Performance Engineering (ICPE)},
+  year      = {2024},
+  doi       = {10.1145/3629526.3645040}
+}
+
+@inproceedings{hendler2004elimination,
+  author    = {Hendler, Danny and Shavit, Nir and Yerushalmi, Lena},
+  title     = {A Scalable Lock-Free Stack Algorithm},
+  booktitle = {Proceedings of the 16th Annual ACM Symposium on Parallelism in Algorithms and Architectures (SPAA)},
+  pages     = {206--215},
+  year      = {2004},
+  doi       = {10.1145/1007912.1007944}
+}
+
+@inproceedings{liu2022libasl,
+  author    = {Liu, Jiaxin and Gu, Jinyu and Tang, Yanzhe and Li, Yubin and Zang, Binyu and Chen, Haibo},
+  title     = {{LibASL}: Asymmetry-aware Scalable Locking},
+  booktitle = {Proceedings of the ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  year      = {2022},
+  doi       = {10.48550/arXiv.2108.03355}
+}
+
+@article{ouyang2022coreaware,
+  author  = {Ouyang, Peng and Zhu, Wenhui},
+  title   = {Core-aware combining: Accelerating critical section execution on heterogeneous multi-core systems via combining synchronization},
+  journal = {Journal of Parallel and Distributed Computing (JPDC)},
+  volume  = {162},
+  pages   = {27--43},
+  year    = {2022},
+  doi     = {10.1016/j.jpdc.2022.01.001}
+}
+
+@inproceedings{kogan2012methodology,
+  author    = {Kogan, Alex and Petrank, Erez},
+  title     = {A Methodology for Creating Fast Wait-Free Data Structures},
+  booktitle = {Proceedings of the ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {141--150},
+  year      = {2012},
+  doi       = {10.1145/2370036.2145835}
+}
+
+@inproceedings{timnat2014simulation,
+  author    = {Timnat, Shahar and Petrank, Erez},
+  title     = {A Practical Wait-Free Simulation for Lock-Free Data Structures},
+  booktitle = {Proceedings of the ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {357--368},
+  year      = {2014},
+  doi       = {10.1145/2555243.2555261}
+}
+
+@article{nikolaev2024crystalline,
+  author  = {Nikolaev, Ruslan and Ravindran, Binoy},
+  title   = {A Family of Fast and Memory Efficient Lock- and Wait-Free Reclamation},
+  journal = {Proceedings of the ACM on Programming Languages (PACMPL)},
+  volume  = {8},
+  number  = {PLDI},
+  year    = {2024},
+  doi     = {10.1145/3658851}
+}
+
+% --- Estado del arte reciente (2021-2025) y verificación ---
+
+@inproceedings{kim2024epochs,
+  author    = {Kim, Daehyeon and Brown, Trevor and Singh, Ajitesh},
+  title     = {Are Your Epochs Too Epic? Batch Free Can Be Harmful},
+  booktitle = {Proceedings of the ACM SIGPLAN Annual Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  year      = {2024},
+  doi       = {10.1145/3627535.3638491}
+}
+
+@article{jung2024circ,
+  author  = {Jung, Jaehwang and Kim, Janggun and Parkinson, Matthew J. and Kang, Jeehoon},
+  title   = {Concurrent Immediate Reference Counting},
+  journal = {Proceedings of the ACM on Programming Languages (PACMPL)},
+  volume  = {8},
+  number  = {PLDI},
+  year    = {2024},
+  doi       = {10.1145/3656383}
+}
+
+@inproceedings{parkinson2023weak,
+  author    = {Parkinson, Matthew J. and Clebsch, Sylvan and Simner, Ben},
+  title     = {Wait-Free Weak Reference Counting},
+  booktitle = {Proceedings of the ACM SIGPLAN International Symposium on Memory Management (ISMM)},
+  year      = {2023},
+  doi       = {10.1145/3591195.3595271}
+}
+
+@inproceedings{kokologiannakis2021genmc,
+  author    = {Kokologiannakis, Michalis and Vafeiadis, Viktor},
+  title     = {{GenMC}: A Model Checker for Weak Memory Models},
+  booktitle = {Computer Aided Verification (CAV 2021)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {12759},
+  publisher = {Springer},
+  year      = {2021},
+  doi       = {10.1007/978-3-030-81685-8_20}
+}
+
+@inproceedings{chen2023uaf,
+  author    = {Chen, Z. and Liu, D. and Xiao, J. and Wang, H.},
+  title     = {All Use-After-Free Vulnerabilities Are Not Created Equal: An Empirical Study on Their Characteristics and Detectability},
+  booktitle = {International Symposium on Research in Attacks, Intrusions and Defenses (RAID)},
+  year      = {2023}
+}
