@@ -239,7 +239,7 @@ La Tabla~\ref{tab:hardware} contrasta los dos servidores del paper con los dos o
 \begin{itemize}
   \item \textbf{\emph{Socket} y NUMA:} un \emph{socket} es un chip físico de procesador enchufado en la placa base. El servidor de rendimiento del paper tenía \textbf{4 chips Xeon} conectados entre sí, cada uno con su propia memoria RAM local (\textbf{NUMA}, \emph{Non-Uniform Memory Access}: acceder a la RAM de otro chip tarda bastante más, y el paper repartía la memoria entre los 4 chips con \texttt{numactl -i all}). Nuestros dos equipos tienen \textbf{1 solo chip} y 1 solo nodo de memoria.
   \item \textbf{Arquitectura híbrida (núcleos P y E) frente a monolítica con SMT:} el \textbf{Core Ultra 9 285} (Equipo~A) tiene 24 núcleos físicos sin SMT divididos en dos tipos: 8 núcleos \textbf{P} (\emph{Performance}, grandes y rápidos en cálculo) y 16 núcleos \textbf{E} (\emph{Efficient}, compactos y agrupados de 4 en 4 en \textbf{clústeres} que comparten 4\,MB de caché L2). En cambio, el \textbf{Core i5-10400} (Equipo~B) tiene 6 núcleos idénticos en un anillo monolítico con \textbf{SMT} (\emph{Simultaneous Multithreading} o \emph{Hyper-Threading}: cada núcleo físico atiende 2 hilos de hardware a la vez compartiendo la misma caché L1 y L2, sumando 12 hilos).
-  \item \textbf{Canales de memoria RAM (simple frente a doble canal):} cada canal es una autopista independiente entre la CPU y la RAM. El Core Ultra 9 285 operó con \textbf{un solo módulo de 32\,GB DDR5} (un único canal), mientras que el Core i5-10400 disponía de dos módulos (24\,GB DDR4 en \textbf{doble canal}).
+  \item \textbf{Canales de memoria RAM (simple frente a doble canal):} cada canal es una autopista independiente entre la CPU y la RAM. El Core Ultra 9 285 operó con \textbf{un solo módulo de 32\,GB DDR5} (un único canal), mientras que el Core i5-10400 disponía de dos módulos asimétricos (16\,GB + 8\,GB = 24\,GB DDR4 en \textbf{Intel Flex Mode}: 16\,GB en doble canal y 8\,GB superiores en canal único).
   \item \textbf{Docker, WSL2 y \texttt{jemalloc}:} \textbf{Docker} es un contenedor ligero de Linux que empaqueta la versión exacta de Ubuntu 22.04 y bibliotecas del autor sin emular otro procesador (corre directamente sobre el mismo kernel y la misma CPU); \textbf{WSL2} (\emph{Windows Subsystem for Linux 2}) es el entorno Linux real sobre Windows usado en el i5-10400; y \textbf{\texttt{jemalloc}} es un gestor de memoria optimizado para muchos hilos que se carga sin recompilar el binario mediante la variable \texttt{LD\_PRELOAD} de Linux.
 \end{itemize}
 
@@ -630,7 +630,7 @@ Por otro lado, para comprobar si el cuádruple empate en $n=10^6$ (53--57\,Mop/s
 \end{figure}
 
 \subsection{Segundo equipo: Intel Core i5-10400 frente a Intel Core Ultra 9 285}
-Para comprobar si las conclusiones dependen de un procesador concreto, repetimos el banco propio (\texttt{codigo/ejecutar\_pruebas.sh}, \texttt{bench.cpp} sin alinear, \texttt{g++ 13.3}) en un segundo ordenador muy distinto: un \textbf{Intel Core i5-10400} de 6 núcleos y 12 hilos con SMT, 24\,GB DDR4 en doble canal y WSL2 Ubuntu 24.04. Las Figuras~\ref{fig:maquinas_comp} y~\ref{fig:maquinas_lat} y la Tabla~\ref{tab:dos_equipos} comparan directamente ambas máquinas ejecutando exactamente el mismo binario.
+Para comprobar si las conclusiones dependen de un procesador concreto, repetimos el banco propio (\texttt{codigo/ejecutar\_pruebas.sh}, \texttt{bench.cpp} sin alinear, \texttt{g++ 13.3}) en un segundo ordenador muy distinto: un \textbf{Intel Core i5-10400} de 6 núcleos y 12 hilos con SMT, 24\,GB DDR4 (16+8\,GB en \emph{Intel Flex Mode}), inicialmente medido en WSL2 Ubuntu 24.04 y posteriormente replicado de forma íntegra y sin ruido en \textbf{Xubuntu 24.04.5 LTS nativo}. Las Figuras~\ref{fig:maquinas_comp} y~\ref{fig:maquinas_lat} y la Tabla~\ref{tab:dos_equipos} comparan directamente ambas máquinas ejecutando exactamente el mismo binario.
 
 \begin{figure}[H]
   \centering
@@ -680,6 +680,43 @@ $n=10^5,\ u=50\,\%$ & \textbf{Autores} & 4,67 & \textbf{14,31} & $\mathbf{3,07\t
 
 El segundo equipo confirma todas las tendencias entre algoritmos: a 12 hilos en $n=1, u=1\,\%$, Autores rinde $7,3\times$ más que Williams y $24,8\times$ más que Libstdc++, y conserva la cola \texttt{p99} más corta en ambas máquinas (mientras la mediana baja del \texttt{Mutex} engaña porque la mayoría de hilos están dormidos, disparando su cola \texttt{p99} a 21--26\us{}). Además, deja una lección muy ilustrativa sobre arquitectura de procesadores: cuando los hilos trabajan sin estorbarse (1 hilo o $n=10^5$), el moderno Core Ultra 9 supera ampliamente al i5-10400 ($2,16\times$--$3,07\times$). En cambio, \textbf{bajo máxima contención ($n=1, u=1\,\%$, 12 hilos), el Core i5-10400 rinde casi el doble que el Core Ultra 9} ($39,13$ frente a $21,79$\,Mop/s). La hipótesis más verosímil —coherente con nuestra Sección~4.3, aunque pendiente de medir directamente fijando hilos en el i5— es que los 6 núcleos iguales en anillo del i5, con parejas de hilos SMT compartiendo literalmente la misma caché L1 y L2, se pasan la única línea caliente mucho más rápido que los clústeres híbridos P y E del Ultra 9 (47--86\,ns).
 
+
+\subsection{Réplica oficial nativa sin ruido en el Core i5-10400 (\texttt{nativo\_oficial}, 1\,551 mediciones)}
+Para eliminar por completo la capa de virtualización de WSL2 y disponer de una comparación estrictamente simétrica frente a \texttt{nativo\_oficial/} del Core Ultra 9 285, compilamos el artefacto oficial de Zenodo en \textbf{Xubuntu 24.04.5 LTS nativo} (\texttt{g++-12} 12.4.0, \texttt{jemalloc 5.3.0}, \texttt{mitigations=on}) sobre el mismo Core i5-10400 y ejecutamos \textbf{1\,551 mediciones con 0 fallos} bajo aislamiento de laboratorio (\texttt{modo-bench}: entorno gráfico \texttt{lightdm} y temporizadores del sistema detenidos, gobernador \texttt{performance / EPP=performance}, temperaturas estables en 42--75\,°C). Los contadores hardware \texttt{perf stat -a} sobre \texttt{uncore\_imc} registraron \textbf{\texttt{gt\_requests = 0,00\,MiB}} en las 15 sondas, demostrando físicamente que la gráfica integrada Intel UHD 630 no generó tráfico DRAM durante las pruebas.
+
+\begin{table}[H]
+\centering
+\caption{Réplica oficial nativa en Core i5-10400 (\texttt{bench\_stack}, mediana de 5 rondas $\times$ 2\,s a 12 hilos y 3 rondas a 18 hilos, en Mop/s; fuente: \texttt{david-i5-10400/nativo\_oficial/rendimiento.csv}).}
+\label{tab:i5_nativo_oficial}
+\footnotesize
+\begin{tabular}{@{}l r r r r r@{}}
+\toprule
+\textbf{Panel (12\,h / 18\,h)} & \textbf{Autores} & \textbf{Anderson} & \textbf{Folly} & \textbf{Libstdc++} & \textbf{Williams} \\
+\midrule
+$n=1,\ u=1\,\%$ & \textbf{36,95} / \textbf{36,98} & 23,46 / 23,44 & 8,65 / 8,74 & 4,41 / 3,14 & 5,21 / 5,28 \\
+$n=1,\ u=10\,\%$ & 7,68 / 7,79 & \textbf{14,89} / \textbf{14,89} & 3,95 / 3,94 & 1,67 / 0,92 & 2,23 / 2,28 \\
+$n=1,\ u=50\,\%$ & 1,66 / 1,66 & \textbf{3,46} / \textbf{3,47} & 0,92 / 1,00 & 0,34 / 0,27 & 0,57 / 0,58 \\
+$n=10,\ u=1\,\%$ & \textbf{97,31} / \textbf{97,00} & 81,79 / 81,27 & 66,21 / 64,91 & 45,14 / 18,39 & 32,45 / 31,87 \\
+$n=10,\ u=10\,\%$ & 55,95 / 55,79 & \textbf{62,24} / \textbf{61,74} & 43,95 / 42,98 & 27,37 / 12,06 & 22,73 / 22,32 \\
+$n=10^6,\ u=50\,\%$ & 22,24 / 22,34 & 18,58 / 18,45 & \textbf{24,86} / \textbf{24,98} & 21,73 / 21,70 & 18,57 / 18,72 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{i5_nativo_oficial.pdf}
+  \caption{Réplica oficial nativa sin ruido en el Core i5-10400 (\texttt{modo-bench}): (a) rendimiento de los 5 algoritmos oficiales a 12 hilos; (b) pares de 2 hilos fijados con \texttt{fijar\_hilos.so} en hermanos SMT frente a núcleos distintos en anillo L3; (c) latencia \texttt{load} en la Figura~6 bajo sobresuscripción extrema ($p=56$).}
+  \label{fig:i5_nativo_oficial}
+\end{figure}
+
+Esta campaña nativa cierra con evidencia directa las hipótesis que habían quedado pendientes en WSL2 (Tabla~\ref{tab:i5_nativo_oficial} y Figura~\ref{fig:i5_nativo_oficial}):
+\begin{itemize}
+  \item \textbf{Demostración directa del efecto SMT (pares de núcleos):} fijando 2 hilos con \texttt{fijar\_hilos.so} (hilo principal aislado en \texttt{CPU 11}, 40 corridas por familia en $n=1, u=50\,\%$), dos \textbf{hermanos SMT del mismo núcleo físico} (\texttt{0-6, 1-7, 2-8, 3-9}) superan a dos núcleos físicos distintos con L3 compartida (\texttt{0-1, 1-2, 2-3, 3-4}) en \textbf{$2,39\times$} en \texttt{Autores} (9,90 frente a 4,15\,Mop/s), \textbf{$2,96\times$} en \texttt{Williams} (4,86 vs.\ 1,64) y \textbf{$2,29\times$} en \texttt{Anderson} (14,29 vs.\ 6,25). Esto confirma causalmente por qué el i5-10400 supera al Ultra 9 285 bajo alta contención.
+  \item \textbf{Latencia \emph{wait-free} en sobresuscripción extrema ($p=56$) y candado oculto de Williams:} en la Figura~6 oficial a $p=12$, \texttt{Autores} logra \texttt{load} en \textbf{88 / 317\,ns} (\texttt{p50 / p99,95}, muy por debajo de los 930\,ns en \texttt{p99} vistos en WSL2); al subir al valor literal del paper ($p=56$, 4,67 hilos por CPU lógica), \texttt{Autores} mantiene \textbf{136 / 462\,ns}, mientras los cuatro rivales se disparan a milisegundos en \texttt{p99,95}: \texttt{Folly} (\textbf{9,01\,ms}), \texttt{Williams} (\textbf{14,01\,ms}), \texttt{Anderson} (\textbf{19,02\,ms}) y \texttt{Libstdc++} (\textbf{27,01\,ms}, $58\,456\times$ mayor cola). Además, el control sin \texttt{-mcx16} reproduce el candado \texttt{lock\_pool} de Williams en Comet Lake ($5,17\times$ más lento en \texttt{load} a $p=12$: 14\,309 vs.\ 2\,769\,ns; $6,35\times$ a $p=56$). En \texttt{store-del} a $p=1$, \texttt{Anderson} ya exhibe una cola \texttt{p99,95} de \textbf{20,3\us{}} (frente a 45\,ns de \texttt{Autores}) y retiene 9\,738--12\,931 bloques en \texttt{bench\_basura} frente a 0 de exceso en \texttt{Autores}.
+  \item \textbf{Paridad $7\times 10$\,s, ancho de banda DRAM real y hallazgo Flex Mode (16+8\,GB):} la receta exacta del paper ($7\times 10$\,s a 12\,h en $n=1, u=50\,\%$) valida las corridas de 2\,s dentro de $<1,5\,\%$ (\texttt{Autores}: 1,683 vs.\ 1,66\,Mop/s; \texttt{Anderson}: 3,463 vs.\ 3,46\,Mop/s). En $n=10^6, u=50\,\%$, \texttt{uncore\_imc} mide \textbf{10,15--12,78\,GB/s} en doble canal limpio (\texttt{Autores}: 22,24\,Mop/s; \texttt{Folly}: 24,86; \texttt{Anderson}: 18,58). Un control adicional de tres arranques verificando direcciones físicas con \texttt{/proc/self/pagemap} confirmó que en arranque limpio ($98,9\,\%$ de páginas en $<16$\,GiB) \texttt{mitigations=off} y \texttt{on} rinden idénticos (22,24 vs.\ 22,25\,Mop/s, $-0,06\,\%$), mientras tras asignaciones intensivas previas que desplazan páginas a los 8\,GB superiores en canal único del modo \emph{Flex Mode}, el caudal de $n=10^6$ cae un $\approx 23\,\%$ (17,23\,Mop/s).
+\end{itemize}
+
 % ==============================================================================
 \section{Veredicto Global, Limitaciones y Reproducibilidad}
 % ==============================================================================
@@ -726,8 +763,8 @@ Ninguna de las dos máquinas del equipo cuenta con varios procesadores físicos 
 Los datos recogidos dejan cuatro líneas concretas para profundizar:
 \begin{enumerate}
   \item \textbf{La brecha de Folly a un solo hilo:} sigue sin explicación medida por qué Folly rendía cinco veces menos que Autores en el servidor Xeon del paper incluso sin concurrencia, mientras que en nuestro equipo rinde a la par. Consultar a los autores sobre la configuración exacta o medir el impacto de repartir la memoria entre 4 \emph{sockets} (\texttt{numactl -i all}) ayudaría a cerrarlo.
-  \item \textbf{Confirmar el techo de RAM en $n = 10^6$:} añadir un segundo módulo DDR5-5600 en el Core Ultra 9 —o compilar los binarios oficiales en el Core i5-10400, que sí trabaja en doble canal— permitiría comprobar de forma definitiva si duplicar el ancho de banda rompe el empate en torno a 55\,Mop/s.
-  \item \textbf{Verificar el papel del SMT en el Core i5-10400:} medir su matriz de latencias entre núcleos y fijar hilos a parejas SMT del mismo núcleo frente a núcleos físicos distintos confirmaría experimentalmente por qué supera al Core Ultra 9 bajo contención extrema.
+  \item \textbf{Confirmar el techo de RAM en $n = 10^6$:} la compilación oficial nativa en el Core i5-10400 (Sección~6.3) ya completó el contraste en DDR4-2667 (revelando además el efecto de memoria asimétrica \emph{Flex Mode} 16+8\,GB); para el Core Ultra 9 sigue pendiente añadir un segundo módulo DDR5-5600.
+  \item \textbf{Papel del SMT en el Core i5-10400 (cerrado en la campaña nativa):} las nuevas mediciones con \texttt{fijar\_hilos.so} en la Sección~6.3 confirmaron directamente una ventaja de $2,29\times$--$2,96\times$ para hermanos SMT frente a núcleos físicos distintos en anillo L3.
   \item \textbf{Rigor estadístico y control fino de latencia:} incorporar intervalos de confianza por remuestreo (\emph{bootstrap}) en \texttt{analizar.py} usando las rondas ya guardadas y repetir la Figura~6 con frecuencia fija y núcleos aislados.
 \end{enumerate}
 
