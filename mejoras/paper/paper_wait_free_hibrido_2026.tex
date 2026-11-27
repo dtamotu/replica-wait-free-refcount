@@ -46,7 +46,7 @@
 
 \captionsetup{font=footnotesize,labelfont=bf}
 \renewcommand{\arraystretch}{1.12}
-\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}}
+\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}{../resultados_i5_10400_comparativa/figuras/}}
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -415,6 +415,46 @@ En la prueba oficial de latencia \textbf{Figura~6} (Cuadro~\ref{tab:lat_full}, 3
 \end{tabular}%
 }
 \end{table}
+
+
+\subsection{Validación cruzada en i5-10400 homogéneo, prueba causal SMT y telemetría IMC}
+
+Para evaluar la generalidad fuera de Arrow Lake, ejecutamos sobre el \textbf{Intel Core i5-10400} (6\,c/12\,h SMT con pares \texttt{0-6..5-11}, 12\,MB L3, 24\,GB DDR4-2667 en 16+8\,GB, Xubuntu 24.04.5 LTS, \texttt{g++-12}, \texttt{modo-bench} con \texttt{lightdm} y temporizadores detenidos) dos campañas completas: \textbf{1\,538 filas pareadas} de \texttt{v1}--\texttt{v4} (769 en arranque \texttt{mitigations=off} + 769 en \texttt{on}, 54--71\,°C, ASan+UBSan+TSan limpios) y la \textbf{réplica oficial nativa} (\texttt{mitigations=on}, 1\,551 mediciones, 0 fallos, incluyendo Fig.~6 a $p=56$, control \texttt{-mcx16}, pares SMT vs.\ L3, ablación SMT \texttt{6$\times$1}/\texttt{3$\times$2} y \texttt{perf uncore\_imc}).
+
+\begin{table}[H]
+\centering
+\caption{Validación cruzada en Core i5-10400 a 12\,h (\texttt{off $\to$ on}, Mop/s) y ablación SMT a 6\,h (\texttt{6$\times$1 $\to$ 3$\times$2}, $n=1, u=50\,\%$, \texttt{CPU 11} para el principal).}
+\label{tab:i5_cruzada}
+\footnotesize
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l c c c c c@{}}
+\toprule
+\textbf{Corte / Métrica} & \textbf{Aut.} & \textbf{v2} & \textbf{v3g} & \textbf{v3} & \textbf{And.} \\
+\midrule
+$n=1, u=1\,\%$ (12\,h) & 37{,}1$\to$33{,}1 & 23{,}6$\to$28{,}8 & 29{,}2$\to$27{,}7 & 26{,}8$\to$28{,}5 & 23{,}5$\to$23{,}5 \\
+$n=1, u=10\,\%$ (12\,h) & 7{,}53$\to$7{,}53 & 7{,}88$\to$7{,}72 & 13{,}1$\to$13{,}8 & \textbf{16{,}4$\to$16{,}3} & 14{,}9$\to$14{,}9 \\
+$n=1, u=50\,\%$ (12\,h) & 1{,}64$\to$1{,}64 & 1{,}79$\to$1{,}81 & 4{,}33$\to$4{,}45 & \textbf{6{,}98$\to$6{,}71} & 3{,}46$\to$3{,}46 \\
+$n=10, u=1\,\%$ (12\,h) & 97{,}4$\to$97{,}4 & 128{,}8$\to$129{,}1 & 129{,}0$\to$129{,}0 & 128{,}8$\to$128{,}5 & 81{,}7$\to$81{,}8 \\
+$n=10, u=10\,\%$ (12\,h) & 56{,}0$\to$56{,}0 & \textbf{81{,}3$\to$81{,}2} & 79{,}5$\to$79{,}6 & 79{,}5$\to$79{,}5 & 62{,}3$\to$62{,}3 \\
+$n=10^6, u=50\,\%$ (12\,h) & 17{,}2$\to$22{,}3 & 19{,}4$\to$25{,}2 & 19{,}5$\to$25{,}1 & 19{,}3$\to$25{,}2 & 14{,}2$\to$18{,}6 \\
+\midrule
+SMT 6\,h (\texttt{6$\times$1$\to$3$\times$2}) & 2{,}86$\to$2{,}24 & 3{,}63$\to$3{,}61 & 3{,}54$\to$4{,}51 & \textbf{3{,}22$\to$6{,}04} & 3{,}77$\to$4{,}06 \\
+\midrule
+Adv.\ \S 5.1 \texttt{p99,95} ($\mu$s, \texttt{off}) & 3{,}32 & 15{,}34 & \multicolumn{2}{c}{\texttt{v4}: \textbf{2{,}98} (\texttt{on}: 2{,}77)} & 4{,}27 \\
+Adv.\ \S 5.1 Esc.\ (K/s, \texttt{off}) & 849 & 526 & \multicolumn{2}{c}{\texttt{v4}: \textbf{1\,031} (\texttt{on}: 1\,445)} & 768 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.98\linewidth]{fig_i5_10400_mitigaciones_y_adversarial.pdf}
+  \caption{Validación cruzada en Intel Core i5-10400 (12 hilos SMT): (a) prueba causal SMT a 6 hilos (\texttt{6$\times$1} físicos vs.\ \texttt{3$\times$2} hermanos SMT) confirmando $+87{,}5\,\%$ en \texttt{v3} frente a $-21{,}6\,\%$ en \texttt{Autores}; (b) variación entre arranques \texttt{on} y \texttt{off} en los 6 paneles; (c) latencia logarítmica del escritor \texttt{CAS} bajo ataque adversarial \S 5.1 (\texttt{off}, 11 lectores vs.\ 1 escritor).}
+  \label{fig:paper_i5_miti_adv}
+\end{figure*}
+
+Los resultados confirman cuatro hallazgos de portabilidad y rigor experimental (Tabla~\ref{tab:i5_cruzada} y Figura~\ref{fig:paper_i5_miti_adv}): (1) \textbf{Prueba causal SMT de \texttt{v3}:} a 12\,h en $n=1, u=50\,\%$, \texttt{v3} logra $4{,}24\times$ (\texttt{off}) / $4{,}10\times$ (\texttt{on}) sobre \texttt{Autores}; fijando exactamente 6 hilos en \texttt{3$\times$2} pares SMT frente a \texttt{6$\times$1} núcleos físicos, \texttt{v3} salta \textbf{$1{,}87\times$} ($3{,}22 \to 6{,}04$\,Mop/s; y $1{,}79\times$ en \texttt{2$\times$2} vs.\ \texttt{4$\times$1}) mientras \texttt{Autores} cae $0{,}78\times$, confirmando que el particionado L2 explota también hermanos SMT (los pares de 2 hilos muestran $2{,}39\times$ SMT frente a L3; \texttt{Anderson-v3} iguala o supera ligeramente a \texttt{v3} a 12\,h). (2) \textbf{Sobresuscripción \emph{wait-free} en Fig.~6 ($p=56$) y control \texttt{-mcx16}:} \texttt{Autores} sostiene \texttt{p99,95} de \textbf{462\,ns} en \texttt{load} a $p=56$ frente a \textbf{9{,}0--27{,}0\,ms} en Folly, Williams, Anderson y Libstdc++ ($58\,456\times$ menor cola), y sin \texttt{-mcx16} Williams se degrada $5{,}17\times$ ($p=12$) y $6{,}35\times$ ($p=56$). (3) \textbf{Compromiso explícito de \texttt{v4}:} en el ataque \S 5.1, \texttt{v4} logra $1{,}96\times / 2{,}31\times$ mayor caudal escritor que \texttt{v2} y mediana de máximos de $16{,}2 / 54{,}0\,\mu$s (peor máximo $67{,}2 / 218{,}9\,\mu$s frente a $9{,}97 / 10{,}51$\,ms en Anderson), a cambio de $-42{,}8\,\% / -31{,}1\,\%$ menos caudal lector; dado que \texttt{rc\_try\_increment\_one()} emplea un bucle \texttt{CAS} sin cota y respaldo a \texttt{fetch\_add}, caracterizamos \texttt{v4} como mitigación empírica fuerte de inanición más que garantía \emph{wait-free} formal. (4) \textbf{Aislamiento IMC y variación entre arranques:} \texttt{perf uncore\_imc} registra \textbf{\texttt{gt\_requests = 0{,}00\,MiB}} (cero ruido DRAM de la UHD 630 bajo \texttt{modo-bench}) y $-10{,}3\,\%$ menos escrituras DRAM con \texttt{v2} en $n=10^6$ ($-29{,}3\,\%$ RSS: 760 vs.\ 1\,075\,MiB). Entre los dos arranques (\texttt{off} vs.\ \texttt{on}), $n=10$ y $p=1$ coinciden dentro de $0{,}2\,\%$, $n=1$ presenta sensibilidad al arranque y $n=10^6$ varía $+28\text{--}36\,\%$ a 12\,h (compatible con la memoria asimétrica 16+8\,GB Intel Flex Mode, pendiente de comprobación por canal/\texttt{pagemap}).
 
 % ==============================================================================
 \section{Trabajo Relacionado y Discusión Crítica}

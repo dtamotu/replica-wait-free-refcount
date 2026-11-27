@@ -37,7 +37,7 @@
 \setlength{\parskip}{4pt}
 \setlength{\parindent}{0pt}
 \renewcommand{\arraystretch}{1.14}
-\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}}
+\graphicspath{{../resultados_v1_v2/figuras/}{../resultados_v3/figuras/}{../resultados_v4/figuras/}{../resultados_i5_10400_comparativa/figuras/}}
 
 \title{%
   {\small\color{acento}\textbf{EXTENSIÓN E INVESTIGACIÓN ORIGINAL SOBRE LA RÉPLICA DE EURO-PAR 2024}}\\[4pt]
@@ -252,6 +252,67 @@ Evaluamos \texttt{bench\_adversarial\_v4} durante 5 rondas $\times$ 2\,s en dos 
 \subsection{Sobrecosto en camino rápido y memoria retenida (\texttt{bench\_basura})}
 
 En los 6 paneles de la Figura~5 a \textbf{1 hilo}, \texttt{Autores-v4} presenta \textbf{0\,\% de sobrecosto} frente a \texttt{Autores-v2} ($1{,}00\times\text{--}1{,}03\times$: $101{,}04$ vs. $99{,}12$ en $n=1, u=1\,\%$; $28{,}31$ vs. $28{,}34$ en $n=1, u=50\,\%$; $5{,}84$ vs. $5{,}68$ en $n=10^6$). A \textbf{24 hilos}, mantiene un sobrecosto acotado en $n=1, u=50\,\%$ ($1{,}49$ vs. $1{,}61$, $0{,}93\times$) y $n=10^6$ ($63{,}71$ vs. $69{,}44$, $0{,}92\times$, aún $+29\,\%$ sobre \texttt{Autores} original y $+9\,\%$ sobre Anderson), mientras en cargas muy dominadas por lecturas concurrentes ($n=10, u=1\,\%$: $85{,}21$ vs. $136{,}72$, $0{,}62\times$, aún por encima de Anderson $71{,}32$ y Folly $50{,}55$) el umbral $K=4$ activa el contador global \texttt{active\_hp\_readers}, ilustrando con transparencia el compromiso clásico entre progreso \emph{lock-free} y protección contra inanición. En \texttt{bench\_basura}, \texttt{Autores-v4} conserva \textbf{0 bloques diferidos} (pico de \textbf{21} bloques a 8\,h y \textbf{55} a 24\,h frente a \textbf{25\,524} de Anderson). En la prueba oficial de latencia \textbf{Figura~6} (\texttt{bench\_atomic\_shared\_ptrs}, 195 filas), \texttt{Autores-v4} confirma \textbf{0\,\% de sobrecosto} en \texttt{load}/\texttt{store}/\texttt{store-del}: iguala los \textbf{14\,ns} en \texttt{load} a $p=1$ (\texttt{p99,95} de \textbf{32\,ns} en \texttt{store-del} frente a \textbf{7\,731\,ns} de Anderson) y lidera en $p=24$ (\texttt{todos24-P}) tanto \texttt{load} (\textbf{410\,ns} vs. 417 original / 487 Anderson) como \texttt{store-del} (\textbf{411\,ns} vs. 425 / 432).
+
+
+% ==============================================================================
+\section{Validación en Arquitectura Homogénea (Intel Core i5-10400): Réplica Oficial, Ablación SMT y Control de Mitigaciones}
+% ==============================================================================
+
+Para contrastar la transferencia de los hallazgos del Intel Core Ultra 9 285 (Arrow Lake, 24 núcleos híbridos P/E sin SMT) a un procesador homogéneo clásico con SMT, ejecutamos en un \textbf{Intel Core i5-10400} (Comet Lake, 6 núcleos físicos / 12 hilos SMT con pares verificados \texttt{0-6, 1-7, 2-8, 3-9, 4-10, 5-11}, 12\,MB L3, 24\,GB DDR4-2667 en configuración asimétrica 16\,GB + 8\,GB, Xubuntu 24.04.5 LTS nativo, \texttt{g++-12} 12.4.0, \texttt{jemalloc} vía \texttt{LD\_PRELOAD} y \texttt{numactl -i all}) dos campañas complementarias bajo \texttt{modo-bench} (\texttt{lightdm} y temporizadores del sistema detenidos, gobernador \texttt{performance / EPP=performance}, \texttt{drop\_caches} previo):
+\begin{enumerate}
+  \item \textbf{Campaña pareada de mejoras (\texttt{v1}--\texttt{v4}, 1\,538 filas totales = 769 en arranque \texttt{mitigations=off} + 769 en arranque \texttt{mitigations=on}):} 564 filas de rendimiento, 108 de latencia Fig.~6, 25 adversariales y 72 de \texttt{bench\_basura} por arranque, precedidas de validación sin errores en \texttt{ASan+UBSan} y \texttt{TSan} (temperatura registrada \textbf{54--71\,°C}).
+  \item \textbf{Réplica oficial nativa compatible con \texttt{nativo\_oficial/} del Ultra 9 (\texttt{mitigations=on}, 1\,551 mediciones, 0 fallos, 42--75\,°C):} los 5 algoritmos del paper (\texttt{Autores}, \texttt{Libstdc++}, \texttt{Williams}, \texttt{Folly}, \texttt{Anderson}) en los 6 paneles $\times$ $\{1, 3, 6, 9, 12, 18\}$ hilos, Fig.~6 hasta $p=56$ con control \texttt{Williams} sin \texttt{-mcx16}, pares SMT vs.\ L3 (40 corridas/familia), ablación SMT controlada (\texttt{6$\times$1} vs.\ \texttt{3$\times$2} y \texttt{4$\times$1} vs.\ \texttt{2$\times$2} con hilo principal aislado en \texttt{CPU 11}), paridad $7\times 10$\,s y contadores físicos \texttt{uncore\_imc}.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Ablación en Intel Core i5-10400 a 12 hilos mostrando \textbf{ambos arranques por separado} (\texttt{off $\to$ on}, mediana de 3 rondas $\times$ 2\,s, Mop/s). Ningún panel mezcla arranques.}
+\label{tab:i5_fig5}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}l c c c c c c c@{}}
+\toprule
+\textbf{Panel (12\,h)} & \textbf{Autores} & \textbf{Aut.-v2} & \textbf{Aut.-v3g} & \textbf{Aut.-v3} & \textbf{Aut.-v4} & \textbf{Anderson} & \textbf{And.-v3} \\
+\midrule
+$n=1, u=1\,\%$ & 37{,}06 $\to$ 33{,}08 & 23{,}62 $\to$ 28{,}82 & 29{,}19 $\to$ 27{,}69 & 26{,}84 $\to$ 28{,}52 & 32{,}39 $\to$ 32{,}36 & 23{,}49 $\to$ 23{,}49 & 23{,}50 $\to$ 23{,}51 \\
+$n=1, u=10\,\%$ & 7{,}53 $\to$ 7{,}53 & 7{,}88 $\to$ 7{,}72 & 13{,}13 $\to$ 13{,}78 & \textbf{16{,}36 $\to$ 16{,}33} & 8{,}75 $\to$ 8{,}23 & 14{,}92 $\to$ 14{,}89 & 17{,}54 $\to$ 17{,}54 \\
+$n=1, u=50\,\%$ & 1{,}64 $\to$ 1{,}64 & 1{,}79 $\to$ 1{,}81 & 4{,}33 $\to$ 4{,}45 & \textbf{6{,}98 $\to$ 6{,}71} & 1{,}77 $\to$ 1{,}66 & 3{,}46 $\to$ 3{,}46 & 6{,}98 $\to$ 6{,}97 \\
+$n=10, u=1\,\%$ & 97{,}35 $\to$ 97{,}36 & 128{,}80 $\to$ 129{,}07 & \textbf{129{,}03 $\to$ 128{,}99} & 128{,}78 $\to$ 128{,}50 & 102{,}75 $\to$ 102{,}73 & 81{,}69 $\to$ 81{,}76 & 81{,}87 $\to$ 81{,}83 \\
+$n=10, u=10\,\%$ & 55{,}97 $\to$ 55{,}99 & \textbf{81{,}29 $\to$ 81{,}18} & 79{,}51 $\to$ 79{,}58 & 79{,}53 $\to$ 79{,}50 & 70{,}54 $\to$ 70{,}51 & 62{,}26 $\to$ 62{,}30 & 60{,}90 $\to$ 60{,}82 \\
+$n=10^6, u=50\,\%$ & 17{,}23 $\to$ 22{,}25 & 19{,}37 $\to$ 25{,}15 & 19{,}47 $\to$ 25{,}09 & 19{,}27 $\to$ 25{,}16 & 19{,}29 $\to$ \textbf{25{,}21} & 14{,}15 $\to$ 18{,}61 & 14{,}23 $\to$ 18{,}54 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig_i5_10400_ablacion_6paneles.pdf}
+  \caption{Ablación en Intel Core i5-10400 (12 hilos SMT, \texttt{modo-bench}) mostrando ambos arranques por separado (\texttt{mitigations=off} y \texttt{on}) en los 6 paneles de la Figura~5.}
+  \label{fig:i5_ablacion}
+\end{figure}
+
+\subsection{Seis hallazgos clave del contraste i5-10400 vs.\ Core Ultra 9 285}
+
+\begin{enumerate}
+  \item \textbf{Prueba causal directa del mecanismo SMT en \texttt{Autores-v3} ($4{,}24\times$ a 12\,h y $1{,}87\times$ en ablación \texttt{3$\times$2} vs.\ \texttt{6$\times$1}):} en $n=1, u=50\,\%$ a 12 hilos, \texttt{Autores-v3} logra \textbf{6{,}98 / 6{,}71\,Mop/s} frente a \textbf{1{,}64 / 1{,}64\,Mop/s} de \texttt{Autores} (\textbf{$4{,}24\times$ en \texttt{off}} y \textbf{$4{,}10\times$ en \texttt{on}}, calculado sin redondeo intermedio) y supera en $+61{,}1\,\% / +50{,}8\,\%$ a \texttt{v3g}. En el escalado $1 \to 3 \to 6 \to 9 \to 12$, \texttt{v3} toca fondo a 6 hilos (3{,}13\,Mop/s) y salta a 9 y 12 hilos ($5{,}14 \to 6{,}98$\,Mop/s). Para aislar causalmente si este salto proviene del emparejamiento entre hermanos SMT, fijamos \textbf{6 hilos} (con el hilo principal aislado en \texttt{CPU 11}) en \texttt{6$\times$1} núcleos físicos (\texttt{0..5}) frente a \texttt{3$\times$2} pares SMT (\texttt{0,6,1,7,2,8}): \texttt{Autores} original \textbf{cae $-21{,}6\,\%$} ($2{,}86 \to 2{,}24$\,Mop/s) y \texttt{v2} permanece plano ($3{,}63 \to 3{,}61$), mientras \textbf{\texttt{Autores-v3} salta $+87{,}5\,\%$ ($3{,}22 \to 6{,}04$\,Mop/s, $1{,}87\times$)} y \texttt{Anderson-v3} $+78{,}6\,\%$ ($3{,}66 \to 6{,}53$). A \textbf{4 hilos} (\texttt{4$\times$1} vs.\ \texttt{2$\times$2}), \texttt{v3} repite el salto ($3{,}98 \to 7{,}14$\,Mop/s, $1{,}79\times$, $+36{,}5\,\%$ sobre \texttt{v3g}). En los pares de 2 hilos, los hermanos SMT superan a los núcleos distintos con L3 compartida por \textbf{$2{,}39\times$} en \texttt{Autores} (9{,}90 vs.\ 4{,}15\,Mop/s), $2{,}96\times$ en \texttt{Williams} y $2{,}29\times$ en \texttt{Anderson}. \emph{Nota de implementación:} \texttt{pe\_topology.h} clasifica toda L2 compartida por 2 CPUs como \texttt{is\_p\_core=false}, asignando ventana 96 a los 6 dominios del i5 (frente a 72 en \texttt{v3g}); separar dominio L2 y clase de núcleo queda identificado como mejora directa.
+
+  \item \textbf{Réplica oficial nativa del paper en Comet Lake (Fig.~6 a $p=56$, control \texttt{-mcx16} y paridad $7\times 10$\,s):} en la Figura~6 bajo sobresuscripción severa (\textbf{$p=56$}, 4{,}67 hilos por CPU lógica), \texttt{Autores} mantiene \texttt{load} en \textbf{136 / 462\,ns} (\texttt{p50 / p99,95}), mientras los cuatro rivales se disparan a milisegundos en \texttt{p99,95}: \texttt{Folly} (\textbf{9{,}01\,ms}), \texttt{Williams} (\textbf{14{,}01\,ms}), \texttt{Anderson} (\textbf{19{,}02\,ms}) y \texttt{Libstdc++} (\textbf{27{,}01\,ms} --- $58\,456\times$ mayor cola). El control de \texttt{Williams} sin \texttt{-mcx16} confirma el candado \texttt{lock\_pool} también en Comet Lake ($5{,}17\times$ más lento en \texttt{load} a $p=12$: 14\,309 vs.\ 2\,769\,ns; $6{,}35\times$ a $p=56$). La receta oficial de paridad ($7\times 10$\,s a 12\,h en $n=1, u=50\,\%$) valida las corridas de $2$\,s con $<1{,}5\,\%$ de diferencia (\texttt{Autores}: 1{,}683 vs.\ 1{,}66\,Mop/s; \texttt{Anderson}: 3{,}463 vs.\ 3{,}46\,Mop/s).
+
+  \item \textbf{Contraste $n=1, u=1\,\%$ vs.\ $n=10$ y efecto de \texttt{\_mm\_pause()}:} en $n=10$, \texttt{v2}/\texttt{v3} lideran con \textbf{+32{,}3\,\%} en $u=1\,\%$ (128{,}80 vs.\ 97{,}35\,Mop/s) y \textbf{+45{,}2\,\%} en $u=10\,\%$ (81{,}29 vs.\ 55{,}97\,Mop/s). En $n=1, u=1\,\%$ (99\,\% lecturas sobre una única pila), \texttt{Autores} (37{,}06 / 33{,}08) supera a \texttt{v2} (23{,}62 / 28{,}82), lo que plantea como hipótesis \emph{false sharing} en el bloque \emph{in-place} (40\,B para el nodo de prueba) compartiendo línea de 64\,B entre contador y dato. En Comet Lake, \texttt{\_mm\_pause()} sigue perjudicando bajo contención (\texttt{v2p} pierde $-11{,}9\,\%$ a $-13{,}1\,\%$ en $n=1, u=50\,\%$ y $-6{,}6\,\%$ en $n=10, u=10\,\%$), aunque menos severamente que el $-32{,}7\,\%$ de Arrow Lake.
+
+  \item \textbf{Reducción empírica de inanición en \texttt{Autores-v4} y su compromiso explícito (ataque \S 5.1, 11L vs.\ 1E):} en ambos arranques, acelerar a los lectores en \texttt{v2} agrava la inanición del escritor (526 / 625\,Kops/s, \texttt{p99,95} = 15{,}3 / 12{,}2\,$\mu$s), mientras \textbf{\texttt{Autores-v4}} alcanza \textbf{1\,031 / 1\,445\,Kops/s} ($1{,}96\times / 2{,}31\times$ sobre \texttt{v2}, $43\times / 62\times$ sobre Folly), \texttt{p99,95} de \textbf{2{,}98 / 2{,}77\,$\mu$s} y mediana de máximos de \textbf{16{,}2 / 54{,}0\,$\mu$s} (peor máximo observado 67{,}2 / 218{,}9\,$\mu$s frente a \textbf{9{,}97 / 10{,}51\,ms} de mediana de máximos en Anderson, \textbf{768 / 792\,Kops/s}). Este beneficio implica un intercambio transparente: \texttt{v4} reduce el caudal lector en $-42{,}8\,\% / -31{,}1\,\%$ (24{,}3 / 27{,}5 vs.\ 42{,}5 / 39{,}9\,Mop/s en \texttt{v2}). Asimismo, como señaló la auditoría de código, \texttt{rc\_try\_increment\_one()} contiene un bucle \texttt{CAS} sin cota y respaldo a \texttt{fetch\_add} en ruta lenta; por ello formulamos \texttt{v4} con rigor como \textbf{reducción empírica fuerte de interferencia lector$\to$escritor} (con 0 bloques de exceso sobre la cota en \texttt{bench\_basura} frente a 9\,738--12\,931 en Anderson).
+
+  \item \textbf{Evaluación honesta del control \texttt{mitigations=off} vs.\ \texttt{on}:} a $p=1$ en Fig.~6 (18/18 \texttt{p50} y \texttt{p99} idénticos al nanosegundo) y en $n=10$ (42/48 celdas con variación $<0{,}2\,\%$), ambos arranques coinciden prácticamente al 100\,\%. En cambio, en $n=1$ (52/96 celdas $>0{,}2\,\%$, p.\,ej.\ \texttt{v2} en $n=1, u=1\,\%$: $+22{,}0\,\%$) y en el banco adversarial (\texttt{v4}: $+40{,}2\,\%$ en caudal escritor en \texttt{on}), la variabilidad inter-arranque supera el umbral de $0{,}2\,\%$; con un solo arranque por modo, el efecto de arranque y el de mitigaciones no son separables en $n=1$, por lo que reportamos ambos arranques explícitamente.
+
+  \item \textbf{Ancho de banda DRAM real (\texttt{uncore\_imc}), aislamiento gráfico probado y salto en $n=10^6$:} los contadores hardware \texttt{perf stat -a} sobre \texttt{uncore\_imc} demuestran dos hechos: (i) \textbf{\texttt{gt\_requests = 0{,}00\,MiB}} en las 15 corridas, confirmando físicamente que \texttt{modo-bench on} elimina el tráfico DRAM de la Intel UHD 630; (ii) en $n=10^6, u=50\,\%$ (12\,h), \texttt{Autores-v2} reduce un \textbf{$-10{,}3\,\%$ las escrituras DRAM} (12\,398 vs.\ 13\,822\,MiB) y un \textbf{$-29{,}3\,\%$ el RSS} (760 vs.\ 1\,075\,MiB), sosteniendo 11{,}97\,GB/s y 25{,}16\,Mop/s frente a 10{,}15\,GB/s y 22{,}24\,Mop/s de \texttt{Autores}. Entre los arranques \texttt{off} y \texttt{on}, $n=10^6$ mostró un salto uniforme de $+28{,}4\text{--}35{,}6\,\%$ a 12\,h (con diferencia de $+0{,}15\,\%$ a 1\,h). Dado que \texttt{dmidecode} confirma 16\,GB (Canal A) + 8\,GB (Canal B) en \textbf{Intel Flex Mode}, esta asimetría de canales es una hipótesis compatible con el perfil creciente por hilos, pendiente de verificación directa mediante direcciones físicas (\texttt{pagemap}) y contadores por canal.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig_i5_10400_mitigaciones_y_adversarial.pdf}
+  \caption{(a) Prueba causal SMT en i5-10400 ($n=1, u=50\,\%$, 6 hilos, principal en \texttt{CPU 11}): \texttt{Autores-v3} gana $1{,}87\times$ al pasar de \texttt{6$\times$1} físicos a \texttt{3$\times$2} pares SMT mientras \texttt{Autores} cae $0{,}78\times$. (b) Cambio porcentual entre arranque \texttt{on} y \texttt{off} en los 6 paneles a 12\,h (incluyendo $n=1, u=1\,\%$). (c) Ataque adversarial \S 5.1 en i5-10400 (11 lectores vs.\ 1 escritor \texttt{CAS}, arranque \texttt{off}).}
+  \label{fig:i5_miti_adv}
+\end{figure}
 
 % ==============================================================================
 \section{Síntesis Final de las Cuatro Mejoras}

@@ -1,0 +1,18 @@
+Fri Nov 27 14:01:29 -05 2026
+Linux cometa 7.0.0-44-generic #44~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Nov 10 20:33:11 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+BOOT_IMAGE=/boot/vmlinuz-7.0.0-44-generic root=UUID=d268b597-bfd7-437a-bd1a-a34a7a23d998 ro quiet splash vt.handoff=7
+==> /sys/devices/system/cpu/vulnerabilities/spectre_v2 <==
+Mitigation: Enhanced / Automatic IBRS; IBPB: conditional; PBRSB-eIBRS: SW sequence; BHI: SW loop, KVM: SW loop
+
+==> /sys/devices/system/cpu/vulnerabilities/gather_data_sampling <==
+Vulnerable
+=== Estado modo-bench (cometa, 12 hilos) ===
+  Escritorio (lightdm): inactive
+inactive
+  Timers ruidosos:      0/3 activos
+  CPU Governor / EPP:   performance / performance
+  Intel Turbo Boost:    ON
+  Frecuencia actual:    800 - 4008 MHz (prom 2934 MHz)
+  Temperatura CPU max:  45.0 C
+  Mitigaciones CPU:     ON (por defecto)
+  GTX 1650 (CUDA):      9 MiB, 4096 MiB, 42, 8.17 W

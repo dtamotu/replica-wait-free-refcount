@@ -200,7 +200,7 @@ def correr_adversarial(salida, max_h, rondas, segundos):
             continue
         cmd = [str(BENCH_ADV), alg, str(lectores), str(segundos)]
         cod, txt, _, _ = ejecutar(cmd, entorno(jemalloc=True), limite=120.0)
-        lineas = [l.strip() for l in txt.strip().splitlines() if l.strip()]
+        lineas = [l.strip() for l in txt.strip().splitlines() if l.strip().startswith(impl + ",")]
         partes = lineas[-1].split(",") if lineas else []
         if cod != 0 or len(partes) != 10:
             print(f"  FALLO adv {alg} r={r}: cod={cod}", file=sys.stderr, flush=True)
